@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Dataset — SignBridge Admin{% endblock %}
+
+{% block extra_head %}
+<style>
+  .admin-layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 60px); }
+  .admin-sidebar { background: var(--bg-surface); border-right: 1px solid var(--border-subtle); padding: 24px 0; position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; }
+  .sidebar-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 16px; margin: 16px 0 6px; }
+  .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: all 150ms; border-left: 2px solid transparent; }
+  .sidebar-link:hover { color: var(--text-primary); background: var(--bg-overlay); }
+  .sidebar-link.active { color: var(--vert-cam); border-left-color: var(--vert-cam); background: rgba(0,122,94,0.07); }
+  .admin-content { padding: 32px 28px; overflow-y: auto; }
+  .table-wrap { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
+  .sb-table { width: 100%; border-collapse: collapse; }
+  .sb-table th { padding: 12px 16px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border-subtle); text-align: left; background: var(--bg-elevated); }
+  .sb-table td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid var(--border-subtle); }
+  .sb-table tr:last-child td { border-bottom: none; }
+  .sb-table tr:hover td { background: var(--bg-overlay); }
+  .bar-wrap { height: 6px; background: var(--bg-elevated); border-radius: 3px; min-width: 80px; overflow: hidden; }
+  .bar-fill  { height: 100%; background: var(--vert-cam); border-radius: 3px; transition: width 600ms ease; }
+  @media (max-width: 768px) { .admin-layout { grid-template-columns: 1fr; } .admin-sidebar { display: none; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <div style="padding:0 16px 16px;border-bottom:1px solid var(--border-subtle);margin-bottom:8px">
+      <div style="font-size:13px;font-weight:600">Administration</div>
+      <div style="font-size:12px;color:var(--text-muted)">SignBridge v1.0</div>
+    </div>
+    <div class="sidebar-label">Général</div>
+    <a href="{% url 'core:admin_dashboard' %}" class="sidebar-link"><i class="fas fa-tachometer-alt" style="width:16px"></i> Dashboard</a>
+    <a href="{% url 'core:admin_signs' %}" class="sidebar-link"><i class="fas fa-hands" style="width:16px"></i> Signes ASL</a>
+    <a href="{% url 'core:admin_dataset' %}" class="sidebar-link active"><i class="fas fa-database" style="width:16px"></i> Dataset</a>
+    <a href="{% url 'core:admin_training' %}" class="sidebar-link"><i class="fas fa-brain" style="width:16px"></i> Entraînement</a>
+    <div class="sidebar-label">Liens rapides</div>
+    <a href="{% url 'core:dictionnaire' %}" class="sidebar-link"><i class="fas fa-book" style="width:16px"></i> Dictionnaire</a>
+    <a href="{% url 'core:interface' %}" class="sidebar-link"><i class="fas fa-exchange-alt" style="width:16px"></i> Traducteur</a>
+  </aside>
+
+  <main class="admin-content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+      <div>
+        <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:4px">Dataset d'entraînement</h1>
+        <p style="font-size:13px;color:var(--text-muted)">{{ total_samples }} échantillon(s) total</p>
+      </div>
+      <div style="display:flex;gap:10px">
+        <a href="{% url 'core:admin_training' %}" class="btn-primary" style="font-size:13px;padding:8px 16px">
+          <i class="fas fa-brain"></i> Entraîner le modèle
+        </a>
+      </div>
+    </div>
+
+    <!-- Info banner -->
+    {% if total_samples == 0 %}
+    <div style="background:rgba(252,209,22,0.1);border:1px solid rgba(252,209,22,0.3);border-radius:12px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:flex-start;gap:12px">
+      <i class="fas fa-exclamation-triangle" style="color:var(--jaune-cam);margin-top:2px;flex-shrink:0"></i>
+      <div>
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px">Dataset vide</div>
+        <p style="font-size:13px;color:var(--text-secondary)">
+          Aucun échantillon enregistré. Utilisez le module caméra pour capturer des signes,
+          ou importez des vidéos via la commande <code style="font-family:'JetBrains Mono';background:var(--bg-elevated);padding:2px 6px;border-radius:4px">python manage.py extract_landmarks</code>.
+        </p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Instructions -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:32px">
+      <div class="sb-card">
+        <div style="font-size:20px;margin-bottom:8px">📷</div>
+        <div style="font-weight:600;font-size:14px;margin-bottom:6px">Via webcam</div>
+        <p style="font-size:13px;color:var(--text-secondary)">Activez la caméra dans le traducteur et signez devant votre webcam. Les landmarks sont enregistrés automatiquement.</p>
+      </div>
+      <div class="sb-card">
+        <div style="font-size:20px;margin-bottom:8px">🎬</div>
+        <div style="font-weight:600;font-size:14px;margin-bottom:6px">Via vidéos</div>
+        <p style="font-size:13px;color:var(--text-secondary)">Placez vos vidéos dans <code style="font-family:'JetBrains Mono';font-size:12px;background:var(--bg-elevated);padding:1px 5px;border-radius:3px">dataset/raw/[signe]/</code> et lancez <code style="font-family:'JetBrains Mono';font-size:12px;background:var(--bg-elevated);padding:1px 5px;border-radius:3px">extract_landmarks</code>.</p>
+      </div>
+      <div class="sb-card">
+        <div style="font-size:20px;margin-bottom:8px">📊</div>
+        <div style="font-weight:600;font-size:14px;margin-bottom:6px">Qualité recommandée</div>
+        <p style="font-size:13px;color:var(--text-secondary)">Minimum 50 échantillons par signe pour un bon modèle. 200+ pour une précision optimale.</p>
+      </div>
+    </div>
+
+    <!-- Distribution table -->
+    {% if samples_by_sign %}
+    <div>
+      <div style="font-size:1rem;font-weight:600;margin-bottom:12px">Distribution par signe</div>
+      {% with max_count=samples_by_sign.0.count %}
+      <div class="table-wrap">
+        <table class="sb-table">
+          <thead>
+            <tr><th>Signe</th><th>Échantillons</th><th>Distribution</th><th>Statut</th></tr>
+          </thead>
+          <tbody>
+            {% for item in samples_by_sign %}
+            <tr>
+              <td style="font-weight:600">{{ item.signe__mot|capfirst }}</td>
+              <td>
+                <span style="font-family:'JetBrains Mono';font-size:13px">{{ item.count }}</span>
+              </td>
+              <td style="min-width:140px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div class="bar-wrap" style="flex:1">
+                    <div class="bar-fill" style="width:{% widthratio item.count max_count 100 %}%"></div>
+                  </div>
+                  <span style="font-size:12px;color:var(--text-muted);width:36px;text-align:right">{% widthratio item.count max_count 100 %}%</span>
+                </div>
+              </td>
+              <td>
+                {% if item.count >= 50 %}
+                <span class="badge badge-success"><i class="fas fa-check"></i> Bon</span>
+                {% elif item.count >= 20 %}
+                <span class="badge" style="background:rgba(245,158,11,0.15);color:#fbbf24"><i class="fas fa-exclamation"></i> Moyen</span>
+                {% else %}
+                <span class="badge badge-error"><i class="fas fa-times"></i> Insuffisant</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endwith %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:60px;color:var(--text-muted)">
+      <div style="font-size:40px;margin-bottom:12px">📭</div>
+      <p style="font-size:14px">Aucune donnée disponible</p>
+    </div>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}

@@ -1,0 +1,497 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}SignBridge — Briser les barrières, signer l'avenir{% endblock %}</title>
+  <meta name="description" content="{% block description %}Traduction bidirectionnelle entre le français et l'ASL (American Sign Language){% endblock %}">
+
+  <!-- Anti-FOUC dark mode -->
+  <script>
+    (function(){
+      var t = localStorage.getItem('sb-theme') ||
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.classList.toggle('dark', t === 'dark');
+    })();
+  </script>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="{% static 'images/favicon.svg' %}">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Tailwind CSS -->
+  <link rel="stylesheet" href="{% static 'css/tailwind.css' %}">
+
+  <!-- CSS Variables & Base Styles -->
+  <style>
+    :root {
+      --vert-cam:       #007A5E;
+      --vert-hover:     #009970;
+      --vert-light:     #E6F4EE;
+      --rouge-cam:      #CE1126;
+      --jaune-cam:      #FCD116;
+      --jaune-dark:     #B8860B;
+    }
+    .dark {
+      --bg-base:        #0D1117;
+      --bg-surface:     #161B22;
+      --bg-elevated:    #21262D;
+      --bg-overlay:     #30363D;
+      --text-primary:   #F0F6FC;
+      --text-secondary: #8B949E;
+      --text-muted:     #484F58;
+      --border-subtle:  rgba(48,54,61,0.8);
+      --border-default: rgba(68,76,86,1);
+      --shadow-sm:      0 1px 3px rgba(0,0,0,0.4);
+      --shadow-md:      0 4px 12px rgba(0,0,0,0.5);
+      --shadow-lg:      0 8px 32px rgba(0,0,0,0.6);
+    }
+    :root:not(.dark) {
+      --bg-base:        #FFFFFF;
+      --bg-surface:     #F6F8FA;
+      --bg-elevated:    #FFFFFF;
+      --bg-overlay:     #F0F2F5;
+      --text-primary:   #1C2128;
+      --text-secondary: #57606A;
+      --text-muted:     #8C959F;
+      --border-subtle:  rgba(208,215,222,0.5);
+      --border-default: rgba(208,215,222,1);
+      --shadow-sm:      0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md:      0 4px 12px rgba(0,0,0,0.12);
+      --shadow-lg:      0 8px 32px rgba(0,0,0,0.16);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3 { font-family: 'Poppins', sans-serif; letter-spacing: -0.02em; }
+    code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* Selection */
+    ::selection { background: rgba(0,122,94,0.3); color: var(--text-primary); }
+
+    /* Buttons */
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--vert-cam); color: #fff;
+      border-radius: 8px; padding: 10px 20px;
+      font-family: 'Inter', sans-serif; font-weight: 500; font-size: 14px;
+      border: none; cursor: pointer; text-decoration: none;
+      transition: all 150ms ease;
+      white-space: nowrap;
+    }
+    .btn-primary:hover {
+      background: var(--vert-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+      color: #fff;
+    }
+    .btn-primary:active { transform: translateY(0); box-shadow: var(--shadow-sm); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--text-primary);
+      border-radius: 8px; padding: 10px 20px;
+      font-family: 'Inter', sans-serif; font-weight: 500; font-size: 14px;
+      border: 1px solid var(--border-default); cursor: pointer; text-decoration: none;
+      transition: all 150ms ease;
+    }
+    .btn-secondary:hover { background: var(--bg-overlay); transform: translateY(-1px); color: var(--text-primary); }
+    .btn-secondary:active { transform: translateY(0); }
+
+    .btn-danger {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--rouge-cam);
+      border-radius: 8px; padding: 10px 20px;
+      font-family: 'Inter', sans-serif; font-weight: 500; font-size: 14px;
+      border: 1px solid var(--rouge-cam); cursor: pointer; text-decoration: none;
+      transition: all 150ms ease;
+    }
+    .btn-danger:hover { background: rgba(206,17,38,0.1); transform: translateY(-1px); }
+
+    /* Inputs */
+    .sb-input {
+      width: 100%;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text-primary);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      transition: border-color 150ms, box-shadow 150ms;
+      outline: none;
+    }
+    .sb-input::placeholder { color: var(--text-muted); }
+    .sb-input:focus {
+      border-color: var(--vert-cam);
+      box-shadow: 0 0 0 3px rgba(0,122,94,0.15);
+    }
+    textarea.sb-input { resize: vertical; min-height: 80px; }
+
+    /* Cards */
+    .sb-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+      transition: border-color 200ms ease, box-shadow 200ms ease;
+    }
+    .sb-card:hover { border-color: var(--border-default); box-shadow: var(--shadow-md); }
+
+    /* Badges */
+    .badge { border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
+    .badge-alphabet  { background: #374151; color: #9CA3AF; }
+    .badge-salutation{ background: #064E3B; color: #6EE7B7; }
+    .badge-chiffre   { background: #1E3A5F; color: #93C5FD; }
+    .badge-famille   { background: #78350F; color: #FCD34D; }
+    .badge-quotidien { background: #3B0764; color: #D8B4FE; }
+    .badge-autre     { background: #7F1D1D; color: #FCA5A5; }
+    .badge-couleur   { background: #164E63; color: #67E8F9; }
+    .badge-success   { background: rgba(0,122,94,0.2); color: #6EE7B7; }
+    .badge-error     { background: rgba(206,17,38,0.15); color: #FCA5A5; }
+
+    /* Navbar */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 60px; z-index: 100;
+      background: rgba(13,17,23,0.85); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex; align-items: center; padding: 0 24px; gap: 16px;
+    }
+    :root:not(.dark) .navbar {
+      background: rgba(255,255,255,0.85);
+    }
+    .nav-link {
+      color: var(--text-secondary); font-weight: 500; font-size: 14px;
+      text-decoration: none; padding: 6px 12px; border-radius: 8px;
+      transition: all 200ms ease; position: relative;
+    }
+    .nav-link:hover { color: var(--text-primary); background: var(--bg-overlay); }
+    .nav-link.active { background: var(--vert-cam); color: #fff; }
+
+    /* Toast */
+    #toast-container {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    }
+    .toast {
+      min-width: 280px; max-width: 360px;
+      background: var(--bg-surface); border: 1px solid var(--border-default);
+      border-radius: 10px; padding: 14px 16px;
+      box-shadow: var(--shadow-lg); pointer-events: auto;
+      transform: translateX(120%); opacity: 0;
+      transition: transform 300ms cubic-bezier(0.34,1.56,0.64,1), opacity 300ms ease;
+      overflow: hidden; position: relative;
+    }
+    .toast.show { transform: translateX(0); opacity: 1; }
+    .toast-progress {
+      position: absolute; bottom: 0; left: 0; height: 2px;
+      background: var(--vert-cam); width: 100%;
+      animation: toast-shrink 4s linear forwards;
+    }
+    @keyframes toast-shrink { from { width: 100%; } to { width: 0%; } }
+
+    /* Skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-overlay) 50%, var(--bg-elevated) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-wave 1.5s ease-in-out infinite;
+      border-radius: 6px;
+    }
+    @keyframes skeleton-wave {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid var(--border-default);
+      border-top-color: var(--vert-cam);
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* WS Status dot */
+    .ws-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      display: inline-block; margin-right: 6px;
+    }
+    .ws-dot.connected { background: #22c55e; animation: ping-dot 2s ease infinite; }
+    .ws-dot.connecting { background: #eab308; }
+    .ws-dot.disconnected { background: #ef4444; }
+    @keyframes ping-dot {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+      50%       { box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+    }
+
+    /* Page content offset */
+    .page-content { padding-top: 60px; }
+
+    /* Fade in animation */
+    .fade-in { animation: fadeIn 0.4s ease forwards; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Mobile menu */
+    .mobile-menu {
+      position: fixed; top: 60px; right: 0; bottom: 0; width: 280px;
+      background: var(--bg-surface); border-left: 1px solid var(--border-default);
+      z-index: 99; padding: 20px;
+      transform: translateX(100%); transition: transform 300ms ease;
+    }
+    .mobile-menu.open { transform: translateX(0); }
+
+    /* Avatar initial badge */
+    .avatar-badge {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--vert-cam), var(--vert-hover));
+      color: #fff; font-weight: 600; font-size: 13px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; user-select: none;
+    }
+
+    /* Dropdown */
+    .dropdown-menu {
+      position: absolute; top: calc(100% + 8px); right: 0;
+      min-width: 180px; background: var(--bg-elevated);
+      border: 1px solid var(--border-default); border-radius: 10px;
+      box-shadow: var(--shadow-lg); z-index: 200;
+      overflow: hidden; opacity: 0; pointer-events: none;
+      transform: translateY(-8px);
+      transition: opacity 150ms ease, transform 150ms ease;
+    }
+    .dropdown-menu.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    .dropdown-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; font-size: 14px; font-weight: 500;
+      color: var(--text-primary); text-decoration: none;
+      cursor: pointer; transition: background 150ms;
+      border: none; background: none; width: 100%;
+    }
+    .dropdown-item:hover { background: var(--bg-overlay); }
+    .dropdown-item.danger { color: var(--rouge-cam); }
+    .dropdown-divider { height: 1px; background: var(--border-subtle); margin: 4px 0; }
+
+    /* Mode switch */
+    .mode-tab {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 8px; font-weight: 500; font-size: 14px;
+      cursor: pointer; transition: all 200ms ease; text-decoration: none;
+      color: var(--text-secondary); border: none; background: transparent;
+    }
+    .mode-tab:hover { color: var(--text-primary); background: var(--bg-overlay); }
+    .mode-tab.active { background: var(--vert-cam); color: #fff; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .navbar { padding: 0 16px; }
+      .nav-center { display: none; }
+      .btn-primary, .btn-secondary { padding: 9px 16px; font-size: 13px; }
+    }
+
+    /* Mic pulse */
+    @keyframes mic-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(206,17,38,0.5); }
+      50%       { box-shadow: 0 0 0 10px rgba(206,17,38,0); }
+    }
+    .mic-active { animation: mic-pulse 1s ease infinite; background: var(--rouge-cam) !important; }
+
+    /* Word highlight */
+    .word-highlight {
+      background: rgba(0,122,94,0.2); color: #6EE7B7;
+      border-radius: 4px; padding: 1px 4px;
+      font-weight: 600; transition: all 300ms ease;
+    }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- NAVBAR -->
+{% if not hide_navbar %}
+<nav class="navbar" id="main-navbar">
+  <!-- Logo -->
+  <a href="{% url 'core:landing' %}" class="flex items-center gap-2 flex-shrink-0" style="text-decoration:none">
+    <img src="{% static 'images/logo-signbridge.svg' %}" alt="SignBridge" style="height:32px;width:auto">
+  </a>
+
+  <!-- Centre : onglets (desktop) -->
+  <div class="nav-center flex items-center gap-1 flex-1 justify-center" id="nav-tabs">
+    {% if user.is_authenticated %}
+    <a href="{% url 'core:interface' %}?mode=text" class="mode-tab {% if request.path == '/app/' and request.GET.mode != 'camera' %}active{% endif %}">
+      <i class="fas fa-hands"></i> Signer
+    </a>
+    <a href="{% url 'core:interface' %}?mode=camera" class="mode-tab {% if request.GET.mode == 'camera' %}active{% endif %}">
+      <i class="fas fa-camera"></i> Caméra
+    </a>
+    {% endif %}
+    <a href="{% url 'core:dictionnaire' %}" class="mode-tab {% if '/dictionnaire' in request.path %}active{% endif %}">
+      <i class="fas fa-book"></i> Dictionnaire
+    </a>
+  </div>
+
+  <!-- Droite -->
+  <div class="flex items-center gap-3 ml-auto">
+    <!-- Theme toggle -->
+    <button id="theme-toggle" onclick="window.toggleTheme()" class="btn-secondary" style="padding:8px 12px;border-radius:8px" title="Changer le thème">
+      <i class="fas fa-sun hidden dark:inline" id="icon-sun"></i>
+      <i class="fas fa-moon inline dark:hidden" id="icon-moon"></i>
+    </button>
+
+    {% if user.is_authenticated %}
+    <!-- User dropdown -->
+    <div class="relative" id="user-menu-wrapper">
+      <div class="avatar-badge" onclick="toggleDropdown()" title="{{ user.full_name }}">
+        {{ user.initials }}
+      </div>
+      <div class="dropdown-menu" id="user-dropdown">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--border-subtle)">
+          <div style="font-size:13px;font-weight:600;color:var(--text-primary)">{{ user.full_name }}</div>
+          <div style="font-size:12px;color:var(--text-muted)">{{ user.email }}</div>
+          {% if user.is_admin %}
+          <span class="badge badge-success" style="margin-top:4px;font-size:11px">Admin</span>
+          {% endif %}
+        </div>
+        <a href="{% url 'core:profil' %}" class="dropdown-item">
+          <i class="fas fa-user" style="color:var(--text-muted)"></i> Mon profil
+        </a>
+        {% if user.is_admin %}
+        <a href="{% url 'core:admin_dashboard' %}" class="dropdown-item">
+          <i class="fas fa-cog" style="color:var(--text-muted)"></i> Administration
+        </a>
+        {% endif %}
+        <div class="dropdown-divider"></div>
+        <form method="post" action="{% url 'core:deconnexion' %}" style="margin:0">
+          {% csrf_token %}
+          <button type="submit" class="dropdown-item danger">
+            <i class="fas fa-sign-out-alt"></i> Déconnexion
+          </button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <a href="{% url 'core:connexion' %}" class="btn-secondary" style="font-size:14px">Connexion</a>
+    <a href="{% url 'core:inscription' %}" class="btn-primary">Commencer</a>
+    {% endif %}
+
+    <!-- Hamburger (mobile) -->
+    <button class="md:hidden btn-secondary" style="padding:8px 10px" onclick="toggleMobileMenu()" id="hamburger">
+      <i class="fas fa-bars"></i>
+    </button>
+  </div>
+</nav>
+
+<!-- Mobile menu -->
+<div class="mobile-menu" id="mobile-menu">
+  {% if user.is_authenticated %}
+  <div style="padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid var(--border-subtle)">
+    <div class="flex items-center gap-3">
+      <div class="avatar-badge" style="width:40px;height:40px;font-size:16px">{{ user.initials }}</div>
+      <div>
+        <div style="font-weight:600">{{ user.full_name }}</div>
+        <div style="font-size:12px;color:var(--text-muted)">{{ user.email }}</div>
+      </div>
+    </div>
+  </div>
+  <a href="{% url 'core:interface' %}?mode=text" class="dropdown-item" style="border-radius:8px"><i class="fas fa-hands" style="color:var(--vert-cam)"></i> Signer</a>
+  <a href="{% url 'core:interface' %}?mode=camera" class="dropdown-item" style="border-radius:8px"><i class="fas fa-camera" style="color:var(--vert-cam)"></i> Caméra</a>
+  {% endif %}
+  <a href="{% url 'core:dictionnaire' %}" class="dropdown-item" style="border-radius:8px"><i class="fas fa-book" style="color:var(--vert-cam)"></i> Dictionnaire</a>
+  {% if user.is_authenticated %}
+  <a href="{% url 'core:profil' %}" class="dropdown-item" style="border-radius:8px"><i class="fas fa-user"></i> Profil</a>
+  {% if user.is_admin %}
+  <a href="{% url 'core:admin_dashboard' %}" class="dropdown-item" style="border-radius:8px"><i class="fas fa-cog"></i> Admin</a>
+  {% endif %}
+  <div class="dropdown-divider"></div>
+  <form method="post" action="{% url 'core:deconnexion' %}">
+    {% csrf_token %}
+    <button type="submit" class="dropdown-item danger" style="border-radius:8px"><i class="fas fa-sign-out-alt"></i> Déconnexion</button>
+  </form>
+  {% else %}
+  <div class="dropdown-divider"></div>
+  <a href="{% url 'core:connexion' %}" class="dropdown-item" style="border-radius:8px"><i class="fas fa-sign-in-alt"></i> Connexion</a>
+  <a href="{% url 'core:inscription' %}" class="dropdown-item" style="border-radius:8px"><i class="fas fa-user-plus"></i> Inscription</a>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- Page Content -->
+<div class="page-content {% if hide_navbar %}!pt-0{% endif %}">
+  {% block content %}{% endblock %}
+</div>
+
+<!-- Scripts -->
+<script src="{% static 'js/theme.js' %}"></script>
+<script src="{% static 'js/toast.js' %}"></script>
+<script src="{% static 'js/animations.js' %}"></script>
+<script>
+  // Dropdown
+  function toggleDropdown() {
+    document.getElementById('user-dropdown').classList.toggle('open');
+  }
+  document.addEventListener('click', function(e) {
+    const w = document.getElementById('user-menu-wrapper');
+    if (w && !w.contains(e.target)) {
+      document.getElementById('user-dropdown')?.classList.remove('open');
+    }
+  });
+
+  // Mobile menu
+  function toggleMobileMenu() {
+    document.getElementById('mobile-menu').classList.toggle('open');
+  }
+
+  // Django messages → toasts
+  {% if messages %}
+  document.addEventListener('DOMContentLoaded', function() {
+    {% for message in messages %}
+    window.toast && window.toast.{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}info{% endif %}('{{ message|escapejs }}');
+    {% endfor %}
+  });
+  {% endif %}
+
+  // Welcome toast from session
+  {% if welcome_toast %}
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => window.toast?.success('{{ welcome_toast|escapejs }} 🤟'), 600);
+  });
+  {% endif %}
+</script>
+
+{% load django_browser_reload %}
+{% django_browser_reload_script %}
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

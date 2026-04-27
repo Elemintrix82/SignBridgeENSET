@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { @apply font-inter; }
+  h1, h2, h3, h4 { @apply font-poppins; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-btn
+           bg-vert-cam text-white font-medium text-sm
+           transition-all duration-150 ease-out cursor-pointer border-0
+           hover:-translate-y-px hover:shadow-md active:translate-y-0;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-btn
+           bg-transparent text-current font-medium text-sm
+           border border-current transition-all duration-150 ease-out cursor-pointer
+           hover:bg-bg-overlay hover:-translate-y-px active:translate-y-0;
+  }
+  .sb-card {
+    @apply bg-bg-surface border border-border-subtle rounded-card p-5
+           transition-all duration-200 ease-out
+           hover:border-border-default hover:shadow-md;
+  }
+  .sb-input {
+    @apply w-full bg-bg-elevated border border-border-default rounded-btn
+           px-3.5 py-2.5 text-sm font-inter transition-all duration-150
+           outline-none placeholder:text-text-muted
+           focus:border-vert-cam focus:shadow-[0_0_0_3px_rgba(0,122,94,0.15)];
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-0.5 text-xs font-medium;
+  }
+}
+
+@layer utilities {
+  .font-inter    { font-family: 'Inter', sans-serif; }
+  .font-poppins  { font-family: 'Poppins', sans-serif; }
+  .font-mono-sb  { font-family: 'JetBrains Mono', monospace; }
+  .text-muted    { color: var(--text-muted); }
+  .text-secondary-sb { color: var(--text-secondary); }
+  .bg-base-sb    { background: var(--bg-base); }
+  .bg-surface-sb { background: var(--bg-surface); }
+}

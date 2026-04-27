@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ sign.mot|capfirst }} en ASL — SignBridge{% endblock %}
+
+{% block extra_head %}
+<style>
+  .detail-hero { padding: 48px 24px 32px; border-bottom: 1px solid var(--border-subtle); }
+  .sign-canvas-wrap {
+    background: #0A0F1A; border-radius: 16px; overflow: hidden;
+    aspect-ratio: 16/9; position: relative; display: flex;
+    align-items: center; justify-content: center;
+  }
+  #sign-canvas { width: 100%; height: 100%; display: block; }
+  .sign-info-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 24px; }
+  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+  .info-value { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+  .related-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .related-card {
+    background: var(--bg-surface); border: 1px solid var(--border-subtle);
+    border-radius: 10px; padding: 16px; text-decoration: none; color: inherit;
+    transition: all 150ms ease; text-align: center;
+  }
+  .related-card:hover { border-color: var(--vert-cam); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:32px 24px">
+
+  <!-- Breadcrumb -->
+  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);margin-bottom:24px">
+    <a href="{% url 'core:dictionnaire' %}" style="color:var(--text-muted);text-decoration:none;transition:color 150ms" onmouseover="this.style.color='var(--vert-cam)'" onmouseout="this.style.color='var(--text-muted)'">
+      <i class="fas fa-book"></i> Dictionnaire
+    </a>
+    <i class="fas fa-chevron-right" style="font-size:10px"></i>
+    <span style="color:var(--text-primary);font-weight:500">{{ sign.mot|capfirst }}</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 380px;gap:32px;align-items:start" class="detail-grid">
+
+    <!-- Left: canvas + controls -->
+    <div>
+      <!-- Affichage principal du signe via HandSignRenderer -->
+      <div class="sign-canvas-wrap" style="aspect-ratio:1;max-height:340px;background:#0A0F1A;border-radius:16px;overflow:hidden;position:relative">
+        <canvas id="sign-canvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+        <!-- Badge catégorie en bas -->
+        <div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+          background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);
+          padding:5px 14px;border-radius:20px;white-space:nowrap;
+          font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted)">
+          {% if sign.categorie == 'ALPHABET' %}🔤 Alphabet ASL
+          {% elif sign.categorie == 'CHIFFRE' %}🔢 Chiffre ASL
+          {% else %}{{ sign.get_categorie_display }}{% endif %}
+        </div>
+      </div>
+
+      <!-- Contrôles -->
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+        {% if user.is_authenticated %}
+        <a href="{% url 'core:interface' %}?q={{ sign.mot }}" class="btn-primary" style="flex:1;justify-content:center;font-size:15px;padding:12px">
+          <i class="fas fa-play"></i> Essayer dans le traducteur
+        </a>
+        {% endif %}
+      </div>
+
+      <!-- Description détaillée du signe ASL -->
+      {% if sign.description %}
+      <div style="margin-top:20px;background:rgba(0,122,94,0.06);border:1px solid rgba(0,122,94,0.2);border-radius:12px;padding:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:18px">✋</span>
+          <div style="font-size:12px;font-weight:700;color:var(--vert-cam);text-transform:uppercase;letter-spacing:0.06em">Comment former ce signe</div>
+        </div>
+        <p style="font-size:14px;line-height:1.8;color:var(--text-secondary)">{{ sign.description }}</p>
+      </div>
+      {% endif %}
+
+      <!-- Guide visuel étape par étape -->
+      <div style="margin-top:16px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:20px">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px">
+          <i class="fas fa-hand-paper"></i> Guide pratique
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="background:var(--bg-elevated);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;margin-bottom:4px">👁️</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:3px">Regardez</div>
+            <div style="font-size:11px;color:var(--text-muted)">Observez la position dans le dictionnaire</div>
+          </div>
+          <div style="background:var(--bg-elevated);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;margin-bottom:4px">✋</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:3px">Reproduisez</div>
+            <div style="font-size:11px;color:var(--text-muted)">Formez la main devant la caméra</div>
+          </div>
+          <div style="background:var(--bg-elevated);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;margin-bottom:4px">📷</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:3px">Testez</div>
+            <div style="font-size:11px;color:var(--text-muted)">Utilisez le mode Caméra</div>
+          </div>
+          <div style="background:var(--bg-elevated);border-radius:8px;padding:12px;text-align:center">
+            <div style="font-size:24px;margin-bottom:4px">🔁</div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:3px">Pratiquez</div>
+            <div style="font-size:11px;color:var(--text-muted)">Répétez jusqu'à maîtrise</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: info -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <h1 style="font-size:2rem;font-weight:700">{{ sign.mot|capfirst }}</h1>
+          <span class="badge badge-{{ sign.categorie|lower }}">{{ sign.get_categorie_display }}</span>
+        </div>
+        {% if sign.est_valide %}
+        <span class="badge badge-success"><i class="fas fa-check-circle"></i> Signe validé</span>
+        {% else %}
+        <span class="badge" style="background:rgba(245,158,11,0.15);color:#fbbf24"><i class="fas fa-clock"></i> En cours de validation</span>
+        {% endif %}
+      </div>
+
+      <div class="sign-info-card">
+        <div class="info-row">
+          <span class="info-label"><i class="fas fa-tag" style="margin-right:6px"></i>Catégorie</span>
+          <span class="info-value">{{ sign.get_categorie_display }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label"><i class="fas fa-chart-bar" style="margin-right:6px"></i>Difficulté</span>
+          <span class="info-value">
+            {% if sign.difficulte == 'FACILE' %}<span style="color:#22c55e">🟢 Facile</span>
+            {% elif sign.difficulte == 'MOYEN' %}<span style="color:#eab308">🟡 Moyen</span>
+            {% else %}<span style="color:var(--rouge-cam)">🔴 Difficile</span>{% endif %}
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label"><i class="fas fa-film" style="margin-right:6px"></i>Type</span>
+          <span class="info-value">{{ sign.est_dynamique|yesno:"Dynamique,Statique" }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label"><i class="fas fa-cube" style="margin-right:6px"></i>Animation 3D</span>
+          <span class="info-value">
+            {% if sign.has_animation %}
+            <span style="color:var(--vert-cam)"><i class="fas fa-check"></i> Disponible</span>
+            {% else %}
+            <span style="color:var(--text-muted)">Non disponible</span>
+            {% endif %}
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label"><i class="fas fa-calendar" style="margin-right:6px"></i>Ajouté le</span>
+          <span class="info-value">{{ sign.created_at|date:"d/m/Y" }}</span>
+        </div>
+      </div>
+
+      <!-- Tips -->
+      <div style="background:rgba(0,122,94,0.08);border:1px solid rgba(0,122,94,0.2);border-radius:12px;padding:16px">
+        <div style="font-size:12px;font-weight:600;color:var(--vert-cam);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">
+          <i class="fas fa-lightbulb"></i> Conseil
+        </div>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.6">
+          {% if sign.est_dynamique %}
+          Ce signe est <strong>dynamique</strong> — il implique un mouvement. Pratiquez le geste lentement avant d'accélérer.
+          {% else %}
+          Ce signe est <strong>statique</strong> — maintenez la position de la main clairement visible devant vous.
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Related signs -->
+  {% if related %}
+  <div style="margin-top:48px">
+    <div style="font-size:18px;font-weight:600;margin-bottom:16px">Signes similaires</div>
+    <div class="related-grid">
+      {% for r in related %}
+      <a href="{% url 'core:dictionnaire_detail' r.mot %}" class="related-card">
+        <div style="font-size:24px;margin-bottom:8px">
+          {% if r.categorie == 'ALPHABET' %}🔤{% elif r.categorie == 'CHIFFRE' %}🔢{% else %}📌{% endif %}
+        </div>
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px">{{ r.mot|capfirst }}</div>
+        <span class="badge badge-{{ r.categorie|lower }}" style="font-size:11px">{{ r.get_categorie_display }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/hand_sign_renderer.js' %}"></script>
+<script>
+// ── HandSignRenderer pour la page de détail ───────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('sign-canvas');
+  if (canvas && typeof HandSignRenderer !== 'undefined') {
+    const renderer = new HandSignRenderer(canvas);
+    renderer.startAnimation('{{ sign.mot|upper|escapejs }}');
+  }
+});
+
+// ── Responsive grid ───────────────────────────────────────────
+function adjustGrid() {
+  const grid = document.querySelector('.detail-grid');
+  if (!grid) return;
+  grid.style.gridTemplateColumns = window.innerWidth < 768 ? '1fr' : '1fr 380px';
+}
+window.addEventListener('resize', adjustGrid);
+adjustGrid();
+</script>
+{% endblock %}

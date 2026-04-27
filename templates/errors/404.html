@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Page introuvable — SignBridge{% endblock %}
+{% block content %}
+<div style="min-height:calc(100vh - 60px);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center">
+  <div style="max-width:480px;animation:fadeIn 0.4s ease">
+    <div style="font-size:80px;margin-bottom:16px;line-height:1">🤷</div>
+    <div style="font-family:'JetBrains Mono';font-size:72px;font-weight:700;color:var(--vert-cam);opacity:0.3;line-height:1;margin-bottom:8px">404</div>
+    <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:12px">Page introuvable</h1>
+    <p style="color:var(--text-secondary);font-size:15px;line-height:1.7;margin-bottom:32px">
+      Cette page n'existe pas ou a été déplacée.<br>
+      Vérifiez l'URL ou revenez à l'accueil.
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a href="/" class="btn-primary"><i class="fas fa-home"></i> Accueil</a>
+      <a href="{% url 'core:dictionnaire' %}" class="btn-secondary"><i class="fas fa-book"></i> Dictionnaire</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

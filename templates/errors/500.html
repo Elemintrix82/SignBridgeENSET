@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Erreur serveur — SignBridge{% endblock %}
+{% block content %}
+<div style="min-height:calc(100vh - 60px);display:flex;align-items:center;justify-content:center;padding:24px;text-align:center">
+  <div style="max-width:480px;animation:fadeIn 0.4s ease">
+    <div style="font-size:80px;margin-bottom:16px;line-height:1">⚠️</div>
+    <div style="font-family:'JetBrains Mono';font-size:72px;font-weight:700;color:var(--rouge-cam);opacity:0.3;line-height:1;margin-bottom:8px">500</div>
+    <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:12px">Erreur serveur</h1>
+    <p style="color:var(--text-secondary);font-size:15px;line-height:1.7;margin-bottom:32px">
+      Une erreur inattendue s'est produite.<br>
+      Notre équipe a été notifiée. Réessayez dans quelques instants.
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a href="/" class="btn-primary"><i class="fas fa-home"></i> Accueil</a>
+      <button onclick="location.reload()" class="btn-secondary"><i class="fas fa-redo"></i> Réessayer</button>
+    </div>
+  </div>
+</div>
+{% endblock %}

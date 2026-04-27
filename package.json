@@ -1,0 +1,12 @@
+{
+  "name": "signbridge",
+  "version": "1.0.0",
+  "description": "SignBridge — Traduction bidirectionnelle LSF",
+  "scripts": {
+    "build:css": "npx tailwindcss --config ./static/js/tailwind.config.js -i ./static/css/input.css -o ./static/css/tailwind.css --minify",
+    "watch:css": "npx tailwindcss --config ./static/js/tailwind.config.js -i ./static/css/input.css -o ./static/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}

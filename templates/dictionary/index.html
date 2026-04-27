@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dictionnaire ASL — SignBridge{% endblock %}
+
+{% block extra_head %}
+<style>
+  .dict-hero {
+    padding: 40px 24px 28px;
+    background: linear-gradient(180deg, rgba(0,122,94,0.07) 0%, transparent 100%);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .cat-filter { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .cat-btn {
+    padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 150ms; border: 1px solid var(--border-default);
+    background: transparent; color: var(--text-secondary); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .cat-btn:hover  { background: var(--bg-overlay); color: var(--text-primary); }
+  .cat-btn.active { background: var(--vert-cam); color: #fff; border-color: var(--vert-cam); }
+
+  .signs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+  }
+
+  .sign-card {
+    background: var(--bg-surface); border: 1px solid var(--border-subtle);
+    border-radius: 14px; text-decoration: none; color: inherit;
+    transition: all 200ms ease; display: flex; flex-direction: column;
+    overflow: hidden; cursor: pointer;
+  }
+  .sign-card:hover {
+    border-color: var(--vert-cam); transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,122,94,0.18);
+  }
+
+  .sign-visual {
+    aspect-ratio: 1;
+    background: linear-gradient(135deg, #0d1526 0%, #111827 100%);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .sign-big-letter {
+    font-family: 'Poppins', sans-serif; font-weight: 800;
+    font-size: 3.2rem; line-height: 1; z-index: 1;
+    text-shadow: 0 0 30px currentColor;
+  }
+  .sign-bg-letter {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; font-family: 'Poppins'; font-size: 5rem;
+    font-weight: 900; opacity: 0.04; color: #fff; user-select: none;
+  }
+  /* La grande lettre disparaît dès que le canvas est rendu */
+  .sign-card-fallback { position: relative; z-index: 1; }
+  .sign-card-canvas-ready + .sign-card-fallback { display: none; }
+
+  .sign-footer {
+    padding: 8px 10px; border-top: 1px solid var(--border-subtle);
+    display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  }
+  .sign-mot { font-family: 'Poppins'; font-weight: 700; font-size: 1rem; }
+  .sign-cat-badge {
+    font-size: 9px; font-weight: 600; text-transform: uppercase;
+    padding: 2px 5px; border-radius: 4px; letter-spacing: 0.03em;
+  }
+
+  .pagination { display: flex; gap: 6px; align-items: center; }
+  .page-btn {
+    width: 36px; height: 36px; border-radius: 8px; display: flex;
+    align-items: center; justify-content: center; font-size: 14px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border-default);
+    background: transparent; color: var(--text-secondary); transition: all 150ms;
+    text-decoration: none;
+  }
+  .page-btn:hover  { background: var(--bg-overlay); }
+  .page-btn.active { background: var(--vert-cam); color: #fff; border-color: var(--vert-cam); }
+  .page-btn.disabled { opacity: 0.4; pointer-events: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dict-hero">
+  <div style="max-width:1200px;margin:0 auto">
+    <div style="margin-bottom:20px">
+      <h1 style="font-size:2rem;font-weight:700;margin-bottom:6px">Dictionnaire ASL</h1>
+      <p style="color:var(--text-secondary)">{{ total }} signe(s) — Alphabet A–Z et chiffres 0–9</p>
+    </div>
+    <form method="get" action="{% url 'core:dictionnaire' %}">
+      <div style="max-width:440px;position:relative">
+        <i class="fas fa-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none"></i>
+        <input type="text" name="q" class="sb-input" placeholder="Rechercher une lettre ou un chiffre..."
+          value="{{ query }}" id="search-input" autocomplete="off"
+          style="padding-left:44px;height:46px;border-radius:12px;font-size:15px">
+        {% if categorie %}<input type="hidden" name="cat" value="{{ categorie }}">{% endif %}
+      </div>
+      <div class="cat-filter">
+        <a href="{% url 'core:dictionnaire' %}{% if query %}?q={{ query }}{% endif %}"
+           class="cat-btn {% if not categorie %}active{% endif %}">Tous ({{ total }})</a>
+        {% for cat_val, cat_label in categories %}
+        <a href="{% url 'core:dictionnaire' %}?cat={{ cat_val }}{% if query %}&q={{ query }}{% endif %}"
+           class="cat-btn {% if categorie == cat_val %}active{% endif %}">
+          {% if cat_val == 'ALPHABET' %}🔤{% elif cat_val == 'CHIFFRE' %}🔢{% else %}📌{% endif %}
+          {{ cat_label }}
+        </a>
+        {% endfor %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<div style="max-width:1200px;margin:0 auto;padding:28px 24px">
+  {% if signs %}
+  <div class="signs-grid">
+    {% for sign in signs %}
+    <a href="{% url 'core:dictionnaire_detail' sign.mot %}" class="sign-card fade-in">
+      <div class="sign-visual">
+        <canvas class="sign-card-canvas" data-sign="{{ sign.mot|upper }}"
+          style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+        <!-- Lettre en fallback si le renderer n'est pas encore chargé -->
+        <div class="sign-big-letter sign-card-fallback"
+          style="color:{% if sign.categorie == 'ALPHABET' %}#6EE7B7{% elif sign.categorie == 'CHIFFRE' %}#FCD116{% else %}#f472b6{% endif %}">
+          {{ sign.mot }}
+        </div>
+      </div>
+      <div class="sign-footer">
+        <span class="sign-mot">{{ sign.mot }}</span>
+        <span class="sign-cat-badge"
+          style="background:{% if sign.categorie == 'ALPHABET' %}rgba(0,122,94,0.2);color:#6EE7B7{% elif sign.categorie == 'CHIFFRE' %}rgba(252,209,22,0.2);color:#FCD116{% else %}rgba(206,17,38,0.2);color:#fca5a5{% endif %}">
+          {% if sign.categorie == 'ALPHABET' %}ABC{% elif sign.categorie == 'CHIFFRE' %}123{% else %}+{% endif %}
+        </span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  {% if total_pages > 1 %}
+  <div style="display:flex;justify-content:center;margin-top:40px">
+    <div class="pagination">
+      {% if page > 1 %}
+      <a href="?page={{ page|add:'-1' }}{% if query %}&q={{ query }}{% endif %}{% if categorie %}&cat={{ categorie }}{% endif %}" class="page-btn"><i class="fas fa-chevron-left"></i></a>
+      {% else %}<span class="page-btn disabled"><i class="fas fa-chevron-left"></i></span>{% endif %}
+      <span style="font-size:14px;color:var(--text-secondary);padding:0 12px;line-height:36px">{{ page }} / {{ total_pages }}</span>
+      {% if page < total_pages %}
+      <a href="?page={{ page|add:'1' }}{% if query %}&q={{ query }}{% endif %}{% if categorie %}&cat={{ categorie }}{% endif %}" class="page-btn"><i class="fas fa-chevron-right"></i></a>
+      {% else %}<span class="page-btn disabled"><i class="fas fa-chevron-right"></i></span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div style="text-align:center;padding:80px 24px;color:var(--text-muted)">
+    <div style="font-size:48px;margin-bottom:16px">🔍</div>
+    <h3 style="font-size:1.2rem;font-weight:600;color:var(--text-secondary);margin-bottom:8px">Aucun signe trouvé</h3>
+    <p>{% if query %}Aucun résultat pour « {{ query }} ».{% else %}Dictionnaire vide.{% endif %}</p>
+    {% if query %}<a href="{% url 'core:dictionnaire' %}" class="btn-secondary" style="margin-top:16px;display:inline-flex"><i class="fas fa-times"></i> Effacer</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{% static 'js/hand_sign_renderer.js' %}"></script>
+<script>
+// ── Rendu des mini-mains sur les cartes du dictionnaire ─────────
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof HandSignRenderer === 'undefined') return;
+
+  // Utilise IntersectionObserver pour ne rendre que les cartes visibles
+  const canvases = document.querySelectorAll('.sign-card-canvas');
+  const rendered = new Set();
+
+  const render = (canvas) => {
+    if (rendered.has(canvas)) return;
+    rendered.add(canvas);
+    const sign = canvas.dataset.sign;
+    const r = new HandSignRenderer(canvas);
+    // Dessin statique (pas d'animation) pour les cartes
+    // Un petit délai pour étaler le rendu et éviter de bloquer l'UI
+    requestAnimationFrame(() => {
+      r.draw(sign);
+      canvas.classList.add('sign-card-canvas-ready');
+      // Cache le fallback texte
+      const fallback = canvas.nextElementSibling;
+      if (fallback && fallback.classList.contains('sign-card-fallback')) {
+        fallback.style.display = 'none';
+      }
+    });
+  };
+
+  if ('IntersectionObserver' in window) {
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) render(e.target); });
+    }, { rootMargin: '60px' });
+    canvases.forEach(c => obs.observe(c));
+  } else {
+    // Fallback sans IO : tout rendre (par petits paquets)
+    let idx = 0;
+    const batch = () => {
+      const end = Math.min(idx + 6, canvases.length);
+      for (; idx < end; idx++) render(canvases[idx]);
+      if (idx < canvases.length) setTimeout(batch, 60);
+    };
+    batch();
+  }
+});
+
+// ── Recherche live ───────────────────────────────────────────────
+let searchTimer;
+document.getElementById('search-input')?.addEventListener('input', function() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    const q   = this.value.trim();
+    const cat = new URLSearchParams(window.location.search).get('cat') || '';
+    const url = '{% url "core:dictionnaire" %}' +
+      (q || cat ? '?' : '') + (q ? 'q='+encodeURIComponent(q) : '') +
+      (q && cat ? '&' : '') + (cat ? 'cat='+cat : '');
+    window.location.href = url;
+  }, 300);
+});
+</script>
+{% endblock %}

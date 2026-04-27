@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Connexion — SignBridge{% endblock %}
+{% block description %}Connectez-vous à SignBridge pour accéder au traducteur ASL{% endblock %}
+
+{% block extra_head %}
+<style>
+  .auth-bg {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    position: relative; overflow: hidden;
+    background: var(--bg-base);
+  }
+  .auth-bg::before {
+    content: '';
+    position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 80%, rgba(0,122,94,0.08), transparent),
+      radial-gradient(ellipse 50% 35% at 80% 20%, rgba(252,209,22,0.05), transparent),
+      radial-gradient(ellipse 40% 30% at 60% 70%, rgba(206,17,38,0.04), transparent);
+  }
+  /* Geo shapes subtiles */
+  .geo-shape {
+    position: absolute; border-radius: 50%; opacity: 0.04; pointer-events: none;
+  }
+
+  .auth-card {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 440px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: 16px; padding: 40px;
+    box-shadow: var(--shadow-lg);
+    animation: auth-enter 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  }
+  @keyframes auth-enter {
+    from { opacity: 0; transform: translateY(24px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
+  }
+
+  .form-group { margin-bottom: 20px; }
+  .form-label {
+    display: block; font-size: 13px; font-weight: 600;
+    color: var(--text-secondary); margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .field-error {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--rouge-cam);
+    margin-top: 6px; animation: fadeIn 0.2s ease;
+  }
+  .sb-input.error { border-color: var(--rouge-cam); }
+  .sb-input.error:focus { box-shadow: 0 0 0 3px rgba(206,17,38,0.15); }
+
+  .password-wrapper { position: relative; }
+  .password-toggle {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); padding: 4px; transition: color 150ms;
+  }
+  .password-toggle:hover { color: var(--text-primary); }
+
+  .divider {
+    display: flex; align-items: center; gap: 12px; margin: 24px 0;
+    color: var(--text-muted); font-size: 13px;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border-subtle);
+  }
+
+  .checkbox-row {
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer; user-select: none;
+  }
+  .sb-checkbox {
+    width: 16px; height: 16px; border-radius: 4px;
+    border: 1px solid var(--border-default);
+    background: var(--bg-elevated); cursor: pointer;
+    accent-color: var(--vert-cam);
+  }
+
+  .global-error {
+    background: rgba(206,17,38,0.1); border: 1px solid rgba(206,17,38,0.3);
+    border-radius: 8px; padding: 12px 14px;
+    font-size: 13px; color: #fca5a5;
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 20px; animation: fadeIn 0.2s ease;
+  }
+
+  /* Connexion rapide */
+  .quick-login { margin-bottom: 24px; }
+  .quick-login-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 10px;
+  }
+  .quick-login-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .quick-btn {
+    display: flex; flex-direction: column; align-items: flex-start;
+    padding: 10px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border-default);
+    background: var(--bg-elevated); transition: all 150ms;
+    text-align: left; width: 100%;
+  }
+  .quick-btn:hover { border-color: var(--vert-cam); background: rgba(0,122,94,0.06); }
+  .quick-btn-role {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 2px;
+  }
+  .quick-btn-role.admin { color: var(--jaune-cam); }
+  .quick-btn-role.user  { color: var(--vert-cam); }
+  .quick-btn-email { font-size: 12px; color: var(--text-secondary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-bg" style="padding-top:80px">
+  <!-- Geometric shapes -->
+  <div class="geo-shape" style="width:300px;height:300px;background:#007A5E;top:-80px;left:-80px"></div>
+  <div class="geo-shape" style="width:200px;height:200px;background:#FCD116;bottom:20%;right:-60px"></div>
+  <div class="geo-shape" style="width:150px;height:150px;background:#CE1126;bottom:-40px;left:30%"></div>
+
+  <div class="auth-card">
+    <!-- Logo -->
+    <div style="text-align:center;margin-bottom:32px">
+      <a href="{% url 'core:landing' %}">
+        <img src="{% static 'images/logo-signbridge.svg' %}" alt="SignBridge" style="height:44px">
+      </a>
+      <h1 style="font-size:1.5rem;font-weight:700;margin-top:16px;margin-bottom:6px">Connexion</h1>
+      <p style="font-size:14px;color:var(--text-secondary)">Bon retour sur SignBridge 🤟</p>
+    </div>
+
+    <!-- Connexion rapide (dev) -->
+    <div class="quick-login">
+      <p class="quick-login-title"><i class="fas fa-bolt"></i> Connexion rapide</p>
+      <div class="quick-login-grid">
+        <button type="button" class="quick-btn"
+          onclick="quickLogin('admin@signbridge.fr','Admin@2024')">
+          <span class="quick-btn-role admin">👑 Admin</span>
+          <span class="quick-btn-email">admin@signbridge.fr</span>
+        </button>
+        <button type="button" class="quick-btn"
+          onclick="quickLogin('demo@signbridge.fr','Demo@2024')">
+          <span class="quick-btn-role user">👤 Utilisateur</span>
+          <span class="quick-btn-email">demo@signbridge.fr</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Erreur globale -->
+    {% if form.non_field_errors %}
+    <div class="global-error">
+      <i class="fas fa-exclamation-triangle"></i>
+      {{ form.non_field_errors|first }}
+    </div>
+    {% endif %}
+
+    <form method="post" id="login-form" novalidate>
+      {% csrf_token %}
+
+      <!-- Email -->
+      <div class="form-group">
+        <label class="form-label" for="id_email">Adresse email</label>
+        <input
+          type="email" name="email" id="id_email"
+          class="sb-input {% if form.email.errors %}error{% endif %}"
+          placeholder="vous@exemple.com"
+          value="{{ form.email.value|default:'' }}"
+          autocomplete="email" required
+        >
+        {% if form.email.errors %}
+        <div class="field-error">
+          <i class="fas fa-exclamation-circle"></i> {{ form.email.errors|first }}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Mot de passe -->
+      <div class="form-group">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <label class="form-label" for="id_password" style="margin-bottom:0">Mot de passe</label>
+        </div>
+        <div class="password-wrapper">
+          <input
+            type="password" name="password" id="id_password"
+            class="sb-input {% if form.password.errors %}error{% endif %}"
+            placeholder="••••••••"
+            autocomplete="current-password" required
+            style="padding-right:42px"
+          >
+          <button type="button" class="password-toggle" onclick="togglePassword('id_password', this)" tabindex="-1">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+        {% if form.password.errors %}
+        <div class="field-error">
+          <i class="fas fa-exclamation-circle"></i> {{ form.password.errors|first }}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Remember me -->
+      <div class="form-group" style="margin-bottom:24px">
+        <label class="checkbox-row">
+          <input type="checkbox" name="remember" class="sb-checkbox" id="id_remember"
+            {% if form.remember.value %}checked{% endif %}>
+          <span style="font-size:14px;color:var(--text-secondary)">Se souvenir de moi (7 jours)</span>
+        </label>
+      </div>
+
+      <!-- Submit -->
+      <button type="submit" class="btn-primary" style="width:100%;justify-content:center;font-size:15px;padding:12px;border-radius:10px" id="submit-btn">
+        <i class="fas fa-sign-in-alt"></i> Se connecter
+      </button>
+    </form>
+
+    <div class="divider">ou</div>
+
+    <p style="text-align:center;font-size:14px;color:var(--text-secondary)">
+      Pas encore de compte ?
+      <a href="{% url 'core:inscription' %}" style="color:var(--vert-cam);font-weight:600;text-decoration:none">
+        S'inscrire gratuitement →
+      </a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function quickLogin(email, password) {
+  document.getElementById('id_email').value    = email;
+  document.getElementById('id_password').value = password;
+  document.getElementById('login-form').submit();
+}
+
+function togglePassword(id, btn) {
+  const input = document.getElementById(id);
+  const icon  = btn.querySelector('i');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className = 'fas fa-eye-slash';
+  } else {
+    input.type = 'password';
+    icon.className = 'fas fa-eye';
+  }
+}
+
+document.getElementById('login-form').addEventListener('submit', function(e) {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Connexion en cours...';
+  // Re-enable if form has errors (page reload handles it)
+});
+</script>
+{% endblock %}

@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Gestion des signes — SignBridge Admin{% endblock %}
+
+{% block extra_head %}
+<style>
+  .admin-layout { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 60px); }
+  .admin-sidebar { background: var(--bg-surface); border-right: 1px solid var(--border-subtle); padding: 24px 0; position: sticky; top: 60px; height: calc(100vh - 60px); overflow-y: auto; }
+  .sidebar-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 16px; margin: 16px 0 6px; }
+  .sidebar-link { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: all 150ms; border-left: 2px solid transparent; }
+  .sidebar-link:hover { color: var(--text-primary); background: var(--bg-overlay); }
+  .sidebar-link.active { color: var(--vert-cam); border-left-color: var(--vert-cam); background: rgba(0,122,94,0.07); }
+  .admin-content { padding: 32px 28px; overflow-y: auto; }
+  .table-wrap { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 12px; overflow: hidden; }
+  .sb-table { width: 100%; border-collapse: collapse; }
+  .sb-table th { padding: 12px 16px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border-subtle); text-align: left; background: var(--bg-elevated); }
+  .sb-table td { padding: 12px 16px; font-size: 14px; color: var(--text-primary); border-bottom: 1px solid var(--border-subtle); }
+  .sb-table tr:last-child td { border-bottom: none; }
+  .sb-table tr:hover td { background: var(--bg-overlay); }
+  .dot-valid { width:8px;height:8px;border-radius:50%;background:var(--vert-cam);display:inline-block; }
+  .dot-invalid { width:8px;height:8px;border-radius:50%;background:var(--text-muted);display:inline-block; }
+  @media (max-width: 768px) { .admin-layout { grid-template-columns: 1fr; } .admin-sidebar { display: none; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+  <aside class="admin-sidebar">
+    <div style="padding:0 16px 16px;border-bottom:1px solid var(--border-subtle);margin-bottom:8px">
+      <div style="font-size:13px;font-weight:600">Administration</div>
+      <div style="font-size:12px;color:var(--text-muted)">SignBridge v1.0</div>
+    </div>
+    <div class="sidebar-label">Général</div>
+    <a href="{% url 'core:admin_dashboard' %}" class="sidebar-link"><i class="fas fa-tachometer-alt" style="width:16px"></i> Dashboard</a>
+    <a href="{% url 'core:admin_signs' %}" class="sidebar-link active"><i class="fas fa-hands" style="width:16px"></i> Signes ASL</a>
+    <a href="{% url 'core:admin_dataset' %}" class="sidebar-link"><i class="fas fa-database" style="width:16px"></i> Dataset</a>
+    <a href="{% url 'core:admin_training' %}" class="sidebar-link"><i class="fas fa-brain" style="width:16px"></i> Entraînement</a>
+    <div class="sidebar-label">Liens rapides</div>
+    <a href="{% url 'core:dictionnaire' %}" class="sidebar-link"><i class="fas fa-book" style="width:16px"></i> Dictionnaire</a>
+    <a href="{% url 'core:interface' %}" class="sidebar-link"><i class="fas fa-exchange-alt" style="width:16px"></i> Traducteur</a>
+  </aside>
+
+  <main class="admin-content">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+      <div>
+        <h1 style="font-size:1.5rem;font-weight:700;margin-bottom:4px">Signes ASL</h1>
+        <p style="font-size:13px;color:var(--text-muted)">{{ signs|length }} signe(s) dans la base</p>
+      </div>
+      <button onclick="document.getElementById('add-modal').style.display='flex'" class="btn-primary">
+        <i class="fas fa-plus"></i> Ajouter un signe
+      </button>
+    </div>
+
+    <!-- Filters -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <input type="text" id="filter-input" class="sb-input" placeholder="Filtrer par mot..." style="max-width:260px" oninput="filterTable()">
+      <select id="filter-cat" class="sb-input" style="max-width:180px" onchange="filterTable()">
+        <option value="">Toutes catégories</option>
+        <option value="ALPHABET">Alphabet</option>
+        <option value="CHIFFRE">Chiffre</option>
+      </select>
+    </div>
+
+    <div class="table-wrap">
+      <table class="sb-table" id="signs-table">
+        <thead>
+          <tr>
+            <th>Mot</th><th>Catégorie</th><th>Difficulté</th><th>Animation</th><th>Validé</th><th>Ajouté le</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sign in signs %}
+          <tr data-mot="{{ sign.mot|lower }}" data-cat="{{ sign.categorie }}">
+            <td>
+              <a href="{% url 'core:dictionnaire_detail' sign.mot %}" style="font-weight:600;color:var(--text-primary);text-decoration:none" target="_blank">
+                {{ sign.mot|capfirst }}
+              </a>
+            </td>
+            <td><span class="badge badge-{{ sign.categorie|lower }}">{{ sign.get_categorie_display }}</span></td>
+            <td>
+              {% if sign.difficulte == 'FACILE' %}<span style="color:#22c55e">🟢 Facile</span>
+              {% elif sign.difficulte == 'MOYEN' %}<span style="color:#eab308">🟡 Moyen</span>
+              {% else %}<span style="color:var(--rouge-cam)">🔴 Difficile</span>{% endif %}
+            </td>
+            <td>
+              {% if sign.has_animation %}
+              <span style="color:var(--vert-cam);font-size:13px"><i class="fas fa-check-circle"></i> GLB</span>
+              {% else %}
+              <span style="color:var(--text-muted);font-size:13px"><i class="fas fa-times-circle"></i> Manquant</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if sign.est_valide %}<span class="dot-valid"></span>{% else %}<span class="dot-invalid"></span>{% endif %}
+            </td>
+            <td style="color:var(--text-muted)">{{ sign.created_at|date:"d/m/Y" }}</td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <a href="{% url 'core:dictionnaire_detail' sign.mot %}" class="pill-btn" style="font-size:12px;text-decoration:none" target="_blank">
+                  <i class="fas fa-eye"></i>
+                </a>
+                <button class="pill-btn" style="font-size:12px" onclick="editSign({{ sign.pk }}, '{{ sign.mot|escapejs }}')" title="Modifier">
+                  <i class="fas fa-edit"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px">Aucun signe — <a href="#" onclick="document.getElementById('add-modal').style.display='flex'" style="color:var(--vert-cam)">Ajouter le premier</a></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- Add modal -->
+<div id="add-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;padding:24px">
+  <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:16px;padding:32px;max-width:480px;width:100%;box-shadow:var(--shadow-lg)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+      <h2 style="font-size:1.2rem;font-weight:700">Ajouter un signe</h2>
+      <button onclick="document.getElementById('add-modal').style.display='none'" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="add-sign-form" onsubmit="submitAddSign(event)">
+      {% csrf_token %}
+      <div style="margin-bottom:16px">
+        <label class="form-label" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Mot</label>
+        <input type="text" id="new-mot" class="sb-input" placeholder="ex: bonjour" required>
+      </div>
+      <div style="margin-bottom:16px">
+        <label class="form-label" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Catégorie</label>
+        <select id="new-cat" class="sb-input">
+          <option value="ALPHABET">Alphabet</option>
+          <option value="CHIFFRE">Chiffre</option>
+        </select>
+      </div>
+      <div style="margin-bottom:24px">
+        <label class="form-label" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Description</label>
+        <textarea id="new-desc" class="sb-input" rows="3" placeholder="Description du signe..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button type="submit" class="btn-primary" style="flex:1;justify-content:center">
+          <i class="fas fa-plus"></i> Ajouter
+        </button>
+        <button type="button" class="btn-secondary" onclick="document.getElementById('add-modal').style.display='none'">
+          Annuler
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+  .pill-btn { padding:6px 10px;border-radius:8px;font-size:13px;font-weight:500;background:var(--bg-elevated);border:1px solid var(--border-default);color:var(--text-secondary);cursor:pointer;transition:all 150ms; }
+  .pill-btn:hover { background:var(--bg-overlay);color:var(--text-primary); }
+</style>
+<script>
+function filterTable() {
+  const q   = document.getElementById('filter-input').value.toLowerCase();
+  const cat = document.getElementById('filter-cat').value;
+  document.querySelectorAll('#signs-table tbody tr[data-mot]').forEach(row => {
+    const mot  = row.dataset.mot || '';
+    const rCat = row.dataset.cat || '';
+    const show = mot.includes(q) && (!cat || rCat === cat);
+    row.style.display = show ? '' : 'none';
+  });
+}
+
+async function submitAddSign(e) {
+  e.preventDefault();
+  const mot  = document.getElementById('new-mot').value.trim();
+  const cat  = document.getElementById('new-cat').value;
+  const desc = document.getElementById('new-desc').value.trim();
+  if (!mot) return;
+  try {
+    const r = await fetch('{% url "core:api_dictionary" %}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+      body: JSON.stringify({ mot, categorie: cat, description: desc }),
+    });
+    if (r.ok) {
+      window.toast?.success('Signe "' + mot + '" ajouté ✓');
+      document.getElementById('add-modal').style.display = 'none';
+      setTimeout(() => location.reload(), 800);
+    } else {
+      const d = await r.json();
+      window.toast?.error(d.error || 'Erreur');
+    }
+  } catch { window.toast?.error('Erreur réseau'); }
+}
+
+function editSign(id, mot) {
+  window.toast?.info('Modification de "' + mot + '" — utilisez Django Admin pour l\'édition complète');
+}
+</script>
+{% endblock %}

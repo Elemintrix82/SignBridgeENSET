@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Mon profil — SignBridge{% endblock %}
+
+{% block extra_head %}
+<style>
+  .profile-header {
+    background: linear-gradient(135deg, rgba(0,122,94,0.1) 0%, transparent 60%);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 40px 24px;
+  }
+  .avatar-large {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--vert-cam), var(--vert-hover));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Poppins'; font-weight: 700; font-size: 28px; color: #fff;
+    flex-shrink: 0; border: 3px solid rgba(0,122,94,0.3);
+  }
+  .stat-card {
+    background: var(--bg-surface); border: 1px solid var(--border-subtle);
+    border-radius: 12px; padding: 20px; text-align: center;
+    transition: all 200ms ease;
+  }
+  .stat-card:hover { border-color: var(--vert-cam); box-shadow: var(--shadow-md); }
+  .stat-number { font-family: 'Poppins'; font-weight: 700; font-size: 2rem; color: var(--vert-cam); }
+  .session-row {
+    display: flex; align-items: center; gap: 14px; padding: 14px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .session-row:last-child { border-bottom: none; }
+  .mode-icon {
+    width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Profile header -->
+<div class="profile-header">
+  <div style="max-width:900px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div class="avatar-large">{{ user.initials }}</div>
+      <div>
+        <h1 style="font-size:1.6rem;font-weight:700;margin-bottom:4px">{{ user.full_name }}</h1>
+        <div style="color:var(--text-secondary);font-size:14px;margin-bottom:8px">{{ user.email }}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span class="badge badge-success">
+            <i class="fas fa-user-check"></i> {{ user.get_role_display }}
+          </span>
+          <span class="badge" style="background:var(--bg-elevated);color:var(--text-muted)">
+            <i class="fas fa-calendar"></i> Membre depuis {{ user.date_joined|date:"M Y" }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="max-width:900px;margin:0 auto;padding:32px 24px">
+
+  <!-- Stats -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:40px">
+    <div class="stat-card">
+      <div class="stat-number">{{ stats.total_sessions }}</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-top:4px">Sessions totales</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">{{ stats.text_to_sign }}</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-top:4px">Texte → Signe</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">{{ stats.sign_to_text }}</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-top:4px">Signe → Texte</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">{{ stats.total_signs_used }}</div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-top:4px">Signes utilisés</div>
+    </div>
+  </div>
+
+  <!-- Recent sessions -->
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start" class="profile-grid">
+    <div>
+      <div style="font-size:1.1rem;font-weight:600;margin-bottom:16px">Historique des sessions</div>
+      <div class="sb-card" style="padding:0 20px">
+        {% if sessions %}
+          {% for s in sessions %}
+          <div class="session-row">
+            <div class="mode-icon"
+              style="background:{% if s.mode == 'TEXT_TO_SIGN' %}rgba(0,122,94,0.15){% elif s.mode == 'SIGN_TO_TEXT' %}rgba(59,130,246,0.15){% else %}rgba(168,85,247,0.15){% endif %}">
+              {% if s.mode == 'TEXT_TO_SIGN' %}🤟{% elif s.mode == 'SIGN_TO_TEXT' %}📷{% else %}🎬{% endif %}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-weight:500;color:var(--text-primary)">{{ s.get_mode_display }}</div>
+              {% if s.texte_entree %}
+              <div style="font-size:12px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                {{ s.texte_entree|truncatechars:60 }}
+              </div>
+              {% endif %}
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-size:12px;color:var(--text-muted)">{{ s.created_at|date:"d/m H:i" }}</div>
+              <div style="font-size:12px;color:var(--vert-cam);margin-top:2px">{{ s.nb_signes }} signe(s)</div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div style="padding:32px;text-align:center;color:var(--text-muted)">
+            <div style="font-size:32px;margin-bottom:10px">📭</div>
+            <p style="font-size:14px">Aucune session enregistrée</p>
+            <a href="{% url 'core:interface' %}" class="btn-primary" style="margin-top:12px;display:inline-flex">
+              <i class="fas fa-play"></i> Commencer à traduire
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Side actions -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:1.1rem;font-weight:600;margin-bottom:4px">Actions rapides</div>
+      <a href="{% url 'core:interface' %}" class="btn-primary" style="justify-content:center">
+        <i class="fas fa-hands"></i> Nouveau signe
+      </a>
+      <a href="{% url 'core:interface' %}?mode=camera" class="btn-secondary" style="justify-content:center">
+        <i class="fas fa-camera"></i> Mode caméra
+      </a>
+      <a href="{% url 'core:dictionnaire' %}" class="btn-secondary" style="justify-content:center">
+        <i class="fas fa-book"></i> Dictionnaire
+      </a>
+      {% if user.is_admin %}
+      <div style="height:1px;background:var(--border-subtle);margin:4px 0"></div>
+      <a href="{% url 'core:admin_dashboard' %}" class="btn-secondary" style="justify-content:center">
+        <i class="fas fa-cog" style="color:var(--vert-cam)"></i> Administration
+      </a>
+      {% endif %}
+      <div style="height:1px;background:var(--border-subtle);margin:4px 0"></div>
+      <form method="post" action="{% url 'core:deconnexion' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-danger" style="width:100%;justify-content:center">
+          <i class="fas fa-sign-out-alt"></i> Déconnexion
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function adjustGrid() {
+  const g = document.querySelector('.profile-grid');
+  if (!g) return;
+  g.style.gridTemplateColumns = window.innerWidth < 768 ? '1fr' : '1fr 320px';
+}
+window.addEventListener('resize', adjustGrid); adjustGrid();
+</script>
+{% endblock %}

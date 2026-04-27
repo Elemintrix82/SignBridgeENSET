@@ -1,0 +1,1465 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Traducteur ASL — SignBridge{% endblock %}
+
+{% block extra_head %}
+<style>
+  .app-layout {
+    height: calc(100vh - 60px);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Mode tabs bar */
+  .mode-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 24px; border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-surface); flex-shrink: 0;
+  }
+  .mode-tab-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 18px; border-radius: 8px; font-weight: 500; font-size: 14px;
+    cursor: pointer; transition: all 200ms ease;
+    color: var(--text-secondary); border: none; background: transparent;
+  }
+  .mode-tab-btn:hover { color: var(--text-primary); background: var(--bg-overlay); }
+  .mode-tab-btn.active { background: var(--vert-cam); color: #fff; }
+
+  /* Panels */
+  .panels-container {
+    flex: 1; overflow: hidden; position: relative;
+  }
+  .panel {
+    position: absolute; inset: 0;
+    display: flex; overflow: hidden;
+    transition: transform 300ms cubic-bezier(0.4,0,0.2,1), opacity 300ms ease;
+  }
+  .panel.hidden-left  { transform: translateX(-100%); opacity: 0; pointer-events: none; }
+  .panel.hidden-right { transform: translateX(100%);  opacity: 0; pointer-events: none; }
+
+  /* Column layouts */
+  .col-left  { width: 42%; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; overflow: hidden; }
+  .col-right { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .col-left-b  { width: 55%; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; overflow: hidden; }
+  .col-right-b { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .col-header {
+    padding: 16px 20px; border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+  }
+  .col-body   { flex: 1; overflow-y: auto; padding: 20px; }
+
+  /* Textarea */
+  .translate-textarea {
+    width: 100%; background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: 12px; padding: 14px 16px;
+    color: var(--text-primary); font-family: 'Inter', sans-serif;
+    font-size: 15px; line-height: 1.6; resize: none;
+    transition: border-color 150ms, box-shadow 150ms;
+    outline: none; min-height: 120px; max-height: 200px;
+  }
+  .translate-textarea::placeholder { color: var(--text-muted); }
+  .translate-textarea:focus {
+    border-color: var(--vert-cam);
+    box-shadow: 0 0 0 3px rgba(0,122,94,0.15);
+  }
+
+  /* Word badges */
+  .word-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    transition: all 200ms ease; animation: slideUp 0.2s ease;
+  }
+  .word-badge.found    { background: rgba(0,122,94,0.15);  color: #6EE7B7; border: 1px solid rgba(0,122,94,0.3); }
+  .word-badge.notfound { background: rgba(206,17,38,0.1);  color: #fca5a5; border: 1px solid rgba(206,17,38,0.3); }
+  .word-badge.active   { background: var(--vert-cam); color: #fff; transform: scale(1.08); box-shadow: 0 0 12px rgba(0,122,94,0.4); }
+  @keyframes slideUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+  /* Avatar canvas */
+  #avatar-canvas {
+    width: 100%; flex: 1;
+    background: #0A0F1A; display: block;
+    min-height: 0;
+  }
+  .avatar-sign-label {
+    position: absolute; bottom: 16px; left: 16px;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+    padding: 8px 14px; border-radius: 8px;
+    font-family: 'Poppins', sans-serif; font-size: 15px; font-weight: 600;
+    color: #fff; max-width: 280px;
+    transition: opacity 200ms ease;
+  }
+
+  /* Controls bar */
+  .controls-bar {
+    padding: 12px 20px; border-top: 1px solid var(--border-subtle);
+    display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+    background: var(--bg-surface);
+  }
+  .pill-btn {
+    padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    background: var(--bg-elevated); border: 1px solid var(--border-default);
+    color: var(--text-secondary); cursor: pointer; transition: all 150ms;
+  }
+  .pill-btn:hover { background: var(--bg-overlay); color: var(--text-primary); }
+  .pill-btn.active { background: var(--vert-cam); color: #fff; border-color: var(--vert-cam); }
+
+  /* Progress bar */
+  .progress-bar-track {
+    height: 3px; background: var(--bg-elevated); border-radius: 2px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; background: var(--vert-cam); border-radius: 2px;
+    width: 0%; transition: width 100ms linear;
+  }
+
+  /* Camera panel */
+  .video-wrapper {
+    position: relative; background: #000;
+    border-radius: 12px; overflow: hidden;
+    aspect-ratio: 4/3; width: 100%; flex-shrink: 0;
+  }
+  #webcam-video, #webcam-canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  #webcam-canvas { z-index: 2; }
+  .cam-placeholder {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    background: #0A0F1A; color: var(--text-muted); z-index: 1;
+  }
+  .guide-frame {
+    position: absolute; inset: 15%; border: 2px dashed rgba(0,122,94,0.5);
+    border-radius: 8px; z-index: 3; pointer-events: none;
+  }
+  .detected-sign-overlay {
+    position: absolute; bottom: 12px; left: 12px; right: 12px;
+    background: rgba(0,0,0,0.82); backdrop-filter: blur(10px);
+    border-radius: 12px; padding: 12px 18px; z-index: 4;
+    display: none; border: 1px solid rgba(0,122,94,0.4);
+  }
+  .detected-sign-text {
+    font-family: 'Poppins'; font-size: 4rem; font-weight: 900;
+    color: #6EE7B7; line-height: 1;
+    text-shadow: 0 0 20px rgba(110,231,183,0.5);
+  }
+
+  /* Confidence bar */
+  .conf-bar {
+    height: 4px; border-radius: 2px; background: var(--bg-elevated);
+    overflow: hidden; margin-top: 6px;
+  }
+  .conf-fill { height: 100%; border-radius: 2px; transition: width 300ms ease, background 300ms; }
+
+  /* Recognized text area */
+  .recognized-text {
+    min-height: 160px; background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: 12px; padding: 16px; font-size: 16px;
+    line-height: 1.7; color: var(--text-primary);
+    position: relative; overflow-y: auto;
+  }
+  .recognized-cursor {
+    display: inline-block; width: 2px; height: 1.1em;
+    background: var(--vert-cam); vertical-align: text-bottom;
+    animation: blink 1s step-end infinite; margin-left: 2px;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* Tips rotator */
+  .tip-badge {
+    font-size: 12px; color: var(--text-muted);
+    transition: opacity 300ms ease;
+  }
+
+  /* History chips */
+  .history-chip {
+    padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+    color: var(--text-secondary); white-space: nowrap;
+    transition: opacity 300ms ease;
+  }
+
+  /* Tooltip */
+  .onboarding-tip {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: var(--bg-elevated); border: 1px solid var(--border-default);
+    border-radius: 10px; padding: 10px 18px; font-size: 13px;
+    color: var(--text-secondary); box-shadow: var(--shadow-md);
+    z-index: 500; animation: slideUp 0.3s ease;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* Sign preview card (panneau de prévisualisation) */
+  .sign-preview-panel {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #0A0F1A; z-index: 10;
+    transition: opacity 300ms ease;
+  }
+  .sign-preview-panel.hidden { opacity: 0; pointer-events: none; }
+  #preview-canvas {
+    width: 100%; flex: 1; display: block; min-height: 0;
+  }
+  .preview-info-bar {
+    width: 100%; padding: 10px 20px;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(0,122,94,0.25);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-shrink: 0;
+  }
+  .preview-letter {
+    font-family: 'Poppins', sans-serif; font-size: 2.2rem; font-weight: 900;
+    color: #6EE7B7; line-height: 1; text-shadow: 0 0 20px rgba(110,231,183,0.4);
+  }
+  .preview-desc {
+    font-size: 12px; color: var(--text-secondary); line-height: 1.5;
+    flex: 1; max-width: 260px;
+  }
+
+  /* ── Panel C : Avatar 3D ───────────────────────────────────────── */
+  #hand3d-canvas {
+    width: 100%; flex: 1; display: block; min-height: 0;
+    background: radial-gradient(ellipse at center, #0F1B2A 0%, #07101A 100%);
+    border-radius: 0;
+  }
+  .avatar3d-letter {
+    font-family: 'Poppins', sans-serif;
+    font-size: 5rem; font-weight: 900; line-height: 1;
+    color: #6EE7B7; text-shadow: 0 0 30px rgba(110,231,183,0.5);
+    transition: all 250ms ease;
+  }
+  .avatar3d-progress {
+    display: flex; gap: 4px; flex-wrap: wrap;
+    max-height: 60px; overflow: hidden;
+  }
+  .avatar3d-chip {
+    padding: 3px 9px; border-radius: 12px; font-size: 13px; font-weight: 600;
+    background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+    color: var(--text-muted); transition: all 200ms ease;
+  }
+  .avatar3d-chip.active {
+    background: var(--vert-cam); color: #fff;
+    border-color: var(--vert-cam);
+    transform: scale(1.12);
+    box-shadow: 0 0 10px rgba(0,122,94,0.4);
+  }
+  .avatar3d-chip.done {
+    background: rgba(0,122,94,0.15); color: #6EE7B7;
+    border-color: rgba(0,122,94,0.3);
+  }
+  .speed-btn {
+    padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 600;
+    background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+    color: var(--text-secondary); cursor: pointer; transition: all 150ms;
+  }
+  .speed-btn:hover  { background: var(--bg-overlay); color: var(--text-primary); }
+  .speed-btn.active { background: var(--vert-cam); color: #fff; border-color: var(--vert-cam); }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .col-left, .col-right, .col-left-b, .col-right-b {
+      width: 100%; border-right: none;
+    }
+    .panel { flex-direction: column; }
+    .col-left { border-bottom: 1px solid var(--border-subtle); max-height: 50%; }
+    .col-right { flex: 1; }
+    .col-left-b { max-height: 55%; }
+    #avatar-canvas { min-height: 200px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+
+  <!-- Mode selector bar -->
+  <div class="mode-bar">
+    <button class="mode-tab-btn {% if mode == 'text' %}active{% endif %}" id="tab-text" onclick="switchMode('text')">
+      <i class="fas fa-keyboard"></i> <span>Texte → Signe</span>
+    </button>
+    <button class="mode-tab-btn {% if mode == 'camera' %}active{% endif %}" id="tab-camera" onclick="switchMode('camera')">
+      <i class="fas fa-camera"></i> <span>Caméra → Texte</span>
+    </button>
+    <button class="mode-tab-btn {% if mode == 'avatar' %}active{% endif %}" id="tab-avatar" onclick="switchMode('avatar')">
+      <i class="fas fa-hand-sparkles"></i> <span>Texte → Avatar 3D</span>
+    </button>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+      <div id="ws-status" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary)">
+        <span class="ws-dot disconnected" id="ws-dot"></span>
+        <span id="ws-label">Déconnecté</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panels container -->
+  <div class="panels-container">
+
+    <!-- ── PANEL A : TEXT → SIGN ─────────────────────────── -->
+    <div class="panel {% if mode != 'text' %}hidden-left{% endif %}" id="panel-text">
+      <!-- Left column: input -->
+      <div class="col-left">
+        <div class="col-header">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,122,94,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">🤟</div>
+            <div>
+              <div style="font-weight:600;font-size:15px">Texte vers Signe</div>
+              <div style="font-size:12px;color:var(--text-muted)">Saisissez du texte ou dictez</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-body" style="display:flex;flex-direction:column;gap:14px">
+
+          <!-- Textarea -->
+          <div style="position:relative">
+            <textarea id="translate-input" class="translate-textarea"
+              placeholder="Tapez une lettre ou un mot…"
+              maxlength="500"
+              oninput="onTextInput()"
+              onkeydown="handleTextareaKey(event)"
+            ></textarea>
+            <span id="char-count" style="position:absolute;bottom:10px;right:12px;font-size:12px;color:var(--text-muted)">0/500</span>
+          </div>
+
+          <!-- Toolbar -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-secondary" style="padding:8px 14px;font-size:13px" id="mic-btn" onclick="toggleMic()">
+              <i class="fas fa-microphone"></i> Dicter
+            </button>
+            <button class="btn-secondary" style="padding:8px 14px;font-size:13px" onclick="clearInput()">
+              <i class="fas fa-times"></i> Effacer
+            </button>
+          </div>
+
+          <!-- Translate button -->
+          <button class="btn-primary" id="translate-btn" onclick="translateText()"
+            style="justify-content:center;font-size:15px;padding:12px;border-radius:10px">
+            <i class="fas fa-play"></i> Traduire en ASL
+          </button>
+
+          <!-- Progress bar (hidden initially) -->
+          <div id="anim-progress-wrap" style="display:none">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:4px">
+              <span id="current-word-label">En cours...</span>
+              <span id="progress-pct">0%</span>
+            </div>
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" id="progress-fill"></div>
+            </div>
+          </div>
+
+
+          <!-- Word list (hidden initially) -->
+          <div id="word-list-wrap" style="display:none">
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Signes détectés</div>
+            <div id="word-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
+
+          <!-- Vitesse (affiché après traduction) -->
+          <div id="txt-speed-row" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:600;color:var(--text-muted)">Vitesse :</span>
+            <button class="speed-btn" id="txt-spd-slow"   onclick="setTextSpeed('slow')">🐢 Lent</button>
+            <button class="speed-btn active" id="txt-spd-normal" onclick="setTextSpeed('normal')">▶ Normal</button>
+            <button class="speed-btn" id="txt-spd-fast"   onclick="setTextSpeed('fast')">⚡ Rapide</button>
+          </div>
+
+          <!-- Progression lettre par lettre -->
+          <div id="txt-chips-wrap" style="display:none">
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Progression</div>
+            <div class="avatar3d-progress" id="txt-chips"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Right column: avatar + sign preview -->
+      <div class="col-right" style="position:relative;background:#0A0F1A">
+
+        <!-- ── Panneau de prévisualisation du signe (affiché via ?q=) ── -->
+        <div class="sign-preview-panel hidden" id="sign-preview-panel">
+          <canvas id="preview-canvas"></canvas>
+          <div class="preview-info-bar">
+            <span class="preview-letter" id="preview-letter">—</span>
+            <span class="preview-desc" id="preview-desc">Chargement…</span>
+            <a id="preview-dict-link" href="#" class="btn-secondary"
+               style="padding:6px 12px;font-size:12px;white-space:nowrap;flex-shrink:0">
+              <i class="fas fa-book"></i> Dictionnaire
+            </a>
+          </div>
+        </div>
+
+        <canvas id="avatar-canvas"></canvas>
+        <div class="avatar-sign-label" id="avatar-sign-label" style="opacity:0">
+          <i class="fas fa-hands" style="color:var(--vert-cam);margin-right:6px"></i>
+          <span id="avatar-sign-text">—</span>
+        </div>
+        <button onclick="toggleFullscreen()" title="Plein écran"
+          style="position:absolute;top:12px;right:12px;background:rgba(0,0,0,0.6);border:none;color:#fff;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;backdrop-filter:blur(4px);z-index:20">
+          <i class="fas fa-expand"></i>
+        </button>
+        <!-- Idle state -->
+        <div id="avatar-idle" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-muted);gap:12px;pointer-events:none">
+          <div style="font-size:48px;opacity:0.3">🤟</div>
+          <p style="font-size:14px;text-align:center;max-width:220px;opacity:0.6">Entrez du texte et cliquez <strong>Traduire</strong></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PANEL B : CAMERA → TEXT ───────────────────────── -->
+    <div class="panel {% if mode != 'camera' %}hidden-right{% endif %}" id="panel-camera">
+      <!-- Left column: video -->
+      <div class="col-left-b">
+        <div class="col-header">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,122,94,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">📷</div>
+              <div>
+                <div style="font-weight:600;font-size:15px">Caméra vers Texte</div>
+                <div id="ws-status-inline" style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted)">
+                  <span class="ws-dot disconnected" id="ws-dot-b"></span>
+                  <span id="ws-label-b">WebSocket déconnecté</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-body" style="display:flex;flex-direction:column;gap:14px">
+
+          <!-- Video feed -->
+          <div class="video-wrapper" id="video-wrapper">
+            <video id="webcam-video" autoplay muted playsinline style="display:none"></video>
+            <canvas id="webcam-canvas"></canvas>
+            <div class="guide-frame" id="guide-frame" style="display:none"></div>
+            <div class="cam-placeholder" id="cam-placeholder">
+              <i class="fas fa-camera" style="font-size:40px;opacity:0.3"></i>
+              <p style="font-size:14px">Activez la caméra pour commencer</p>
+            </div>
+            <div class="detected-sign-overlay" id="detected-overlay">
+              <div style="display:flex;align-items:flex-end;justify-content:space-between">
+                <span class="detected-sign-text" id="detected-sign-text">—</span>
+                <span id="conf-pct" style="font-size:12px;color:var(--text-muted);margin-bottom:4px">0%</span>
+              </div>
+              <div class="conf-bar">
+                <div class="conf-fill" id="conf-fill" style="width:0%;background:var(--rouge-cam)"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Badge d'initialisation ML -->
+          <div id="ml-status-badge" style="display:none;align-items:center;gap:8px;
+            background:rgba(252,209,22,0.12);border:1px solid rgba(252,209,22,0.3);
+            border-radius:8px;padding:8px 14px;font-size:12px;color:var(--jaune-cam)">
+            <span class="spinner" style="width:12px;height:12px;border-width:2px"></span>
+            Initialisation du modèle ML… (quelques secondes)
+          </div>
+
+          <!-- Camera toggle -->
+          <button id="cam-btn" class="btn-primary" onclick="toggleCamera()"
+            style="justify-content:center;font-size:15px;padding:12px;border-radius:10px">
+            <i class="fas fa-camera"></i> Activer la caméra
+          </button>
+
+          <!-- Tips -->
+          <div id="tips-display" style="display:flex;align-items:flex-start;gap:8px">
+            <i class="fas fa-lightbulb" style="color:var(--jaune-cam);margin-top:2px;flex-shrink:0"></i>
+            <span class="tip-badge" id="tip-text">Placez vos mains dans le cadre vert</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Right column: recognized text -->
+      <div class="col-right-b">
+        <div class="col-header">
+          <div style="font-weight:600;font-size:15px">Texte reconnu</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
+            <span id="sign-count">0</span> signes reconnus
+          </div>
+        </div>
+        <div class="col-body" style="display:flex;flex-direction:column;gap:14px">
+
+          <!-- Text output -->
+          <div class="recognized-text" id="recognized-text">
+            <span id="recognized-words"></span><span class="recognized-cursor"></span>
+          </div>
+
+          <!-- Toolbar -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-secondary" style="padding:8px 14px;font-size:13px" onclick="clearRecognized()">
+              <i class="fas fa-backspace"></i> Effacer
+            </button>
+            <button class="btn-secondary" style="padding:8px 14px;font-size:13px" onclick="copyRecognized()">
+              <i class="fas fa-copy"></i> Copier
+            </button>
+            <button class="btn-secondary" style="padding:8px 14px;font-size:13px" onclick="speakRecognized()">
+              <i class="fas fa-volume-up"></i> Lire
+            </button>
+          </div>
+
+          <!-- Sign history -->
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Historique (10 derniers)</div>
+            <div id="sign-history" style="display:flex;gap:6px;flex-wrap:wrap;overflow-x:auto"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PANEL C : TEXTE → AVATAR 3D ──────────────────────── -->
+    <div class="panel {% if mode != 'avatar' %}hidden-right{% endif %}" id="panel-avatar">
+
+      <!-- Colonne gauche : saisie + contrôles -->
+      <div class="col-left" style="padding:0">
+        <div class="col-header">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(0,122,94,0.15);display:flex;align-items:center;justify-content:center;font-size:18px">🖐️</div>
+            <div>
+              <div style="font-weight:600;font-size:15px">Texte → Avatar 3D</div>
+              <div style="font-size:12px;color:var(--text-muted)">Main 3D procédurale — signes ASL lettre par lettre</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-body" style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Texte à épeler -->
+          <div>
+            <label style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:8px">
+              Texte à signer
+            </label>
+            <textarea id="avatar3d-input" class="translate-textarea"
+              placeholder="Tapez du texte…  ex: BONJOUR"
+              maxlength="200" rows="4"
+              oninput="onAvatar3DInput()"></textarea>
+            <div style="text-align:right;font-size:11px;color:var(--text-muted);margin-top:4px">
+              <span id="avatar3d-char-count">0</span>/200
+            </div>
+          </div>
+
+          <!-- Vitesse -->
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Vitesse</div>
+            <div style="display:flex;gap:6px">
+              <button class="speed-btn" id="spd-slow"   onclick="setAvatarSpeed('slow')">🐢 Lent</button>
+              <button class="speed-btn active" id="spd-normal" onclick="setAvatarSpeed('normal')">▶ Normal</button>
+              <button class="speed-btn" id="spd-fast"   onclick="setAvatarSpeed('fast')">⚡ Rapide</button>
+            </div>
+          </div>
+
+          <!-- Boutons -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="avatar3d-play-btn" class="btn-primary" style="flex:1;min-width:120px;justify-content:center"
+              onclick="playAvatar3D()">
+              <i class="fas fa-play"></i> Animer
+            </button>
+            <button class="pill-btn" onclick="stopAvatar3D()" title="Arrêter">
+              <i class="fas fa-stop"></i>
+            </button>
+            <button class="pill-btn" onclick="resetAvatar3D()" title="Réinitialiser">
+              <i class="fas fa-undo"></i>
+            </button>
+          </div>
+
+          <!-- Signe courant -->
+          <div style="text-align:center;padding:12px 0">
+            <div id="avatar3d-current-letter" class="avatar3d-letter" style="min-height:5rem">—</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px" id="avatar3d-sign-name"></div>
+          </div>
+
+          <!-- Progression (chips de lettres) -->
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Progression</div>
+            <div id="avatar3d-chips" class="avatar3d-progress"></div>
+            <div class="progress-bar-track" style="margin-top:10px">
+              <div class="progress-bar-fill" id="avatar3d-progress-fill"></div>
+            </div>
+          </div>
+
+          <!-- Statut chargement poses -->
+          <div id="avatar3d-status" style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px">
+            <i class="fas fa-circle-notch fa-spin"></i> Chargement des poses 3D…
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Colonne droite : canvas Three.js -->
+      <div class="col-right" style="position:relative;background:radial-gradient(ellipse at 50% 40%,#0F1B2A 0%,#07101A 100%);display:flex;flex-direction:column">
+        <canvas id="hand3d-canvas" style="width:100%;flex:1;display:block;min-height:0"></canvas>
+
+        <!-- Overlay lettre (affiché quand pose manquante) -->
+        <div id="hand3d-letter-overlay"
+          style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+            font-family:'Poppins',sans-serif;font-size:9rem;font-weight:900;
+            color:rgba(110,231,183,0.18);pointer-events:none;
+            opacity:0;transition:opacity 250ms ease;letter-spacing:-0.02em;
+            user-select:none">—</div>
+
+        <!-- Badge -->
+        <div style="position:absolute;top:16px;right:16px;
+          background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);
+          padding:8px 14px;border-radius:10px;border:1px solid rgba(0,122,94,0.35);
+          font-family:'Poppins',sans-serif;font-size:13px;font-weight:600;color:var(--text-secondary)">
+          Main ASL 3D
+        </div>
+      </div>
+
+    </div><!-- /panel-avatar -->
+
+  </div><!-- /panels-container -->
+</div><!-- /app-layout -->
+
+<!-- Onboarding tip -->
+<div class="onboarding-tip" id="onboarding-tip">
+  <i class="fas fa-info-circle" style="color:var(--vert-cam)"></i>
+  Tapez un mot et cliquez <strong>Traduire</strong> pour voir le signe 🤟
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
+<script type="module">
+  import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/loaders/GLTFLoader.js';
+  if (typeof THREE !== 'undefined') THREE.GLTFLoader = GLTFLoader;
+</script>
+<script src="{% static 'js/hand_sign_renderer.js' %}"></script>
+<script src="{% static 'js/hand3d_renderer.js' %}"></script>
+<script src="{% static 'js/avatar_player.js' %}"></script>
+<script src="{% static 'js/webcam_client.js' %}"></script>
+<script src="{% static 'js/speech_input.js' %}"></script>
+
+<script>
+// ── Pré-requête depuis dictionnaire (?q=) ─────────────────────
+const PRE_QUERY = '{{ pre_query|escapejs }}';
+
+// ── State ──────────────────────────────────────────────────────
+let currentMode    = ['camera','avatar'].includes('{{ mode }}') ? '{{ mode }}' : 'text';
+let avatarPlayer   = null;
+let webcamClient   = null;
+let speechClient   = null;
+let isAnimating    = false;
+let currentSeq     = [];
+let signCount      = 0;
+let signHistory      = [];
+let recognizedText   = '';
+let previewRenderer  = null;  // HandSignRenderer pour la preview
+let hand3DRenderer   = null;  // Hand3DRenderer (Three.js)
+let avatar3DPoses    = {};    // poses chargées depuis l'API
+let avatar3DSpeed    = 'normal';
+const AVATAR3D_SPEEDS = { slow: 1400, normal: 900, fast: 500 };
+
+// ── Vitesse mode Texte→Signe ────────────────────────────────────
+let textModeSpeed = 'normal';
+const TEXT_SPEEDS = { slow: 1.8, normal: 1.0, fast: 0.52 };
+let _txtChipTimers = [];   // timeouts chip highlights
+let _stableSign      = null;  // signe en cours de stabilisation
+let _stableCount     = 0;     // nb de frames consécutives avec ce signe
+let _lastWritten     = null;  // dernier signe écrit — pas de doublon consécutif
+const STABLE_NEEDED  = 3;     // confirmations requises (~240 ms à 12fps)
+const CONF_THRESHOLD = 0.22;  // seuil normal
+const CONF_SUSTAINED = 0.11;  // seuil abaissé si signe stable ≥ 6 frames
+
+// ── Mode switching ─────────────────────────────────────────────
+function switchMode(mode) {
+  if (mode === currentMode) return;
+  currentMode = mode;
+  localStorage.setItem('sb-last-mode', mode);
+
+  const pA   = document.getElementById('panel-text');
+  const pB   = document.getElementById('panel-camera');
+  const pC   = document.getElementById('panel-avatar');
+  const tabA = document.getElementById('tab-text');
+  const tabB = document.getElementById('tab-camera');
+  const tabC = document.getElementById('tab-avatar');
+  const wsEl = document.getElementById('ws-status');
+
+  // Cacher tous les panels
+  [pA, pB, pC].forEach(p => { if (p) { p.classList.add('hidden-right'); p.classList.remove('hidden-left'); }});
+  [tabA, tabB, tabC].forEach(t => { if (t) t.classList.remove('active'); });
+  if (wsEl) wsEl.style.display = 'none';
+
+  if (mode === 'camera') {
+    pA.classList.add('hidden-left'); pA.classList.remove('hidden-right');
+    pB.classList.remove('hidden-right', 'hidden-left');
+    tabB.classList.add('active');
+    if (wsEl) wsEl.style.display = 'flex';
+    initWebcamClient();
+  } else if (mode === 'avatar') {
+    pA.classList.add('hidden-left'); pA.classList.remove('hidden-right');
+    pC.classList.remove('hidden-right', 'hidden-left');
+    tabC.classList.add('active');
+    initAvatar3D();
+  } else {
+    pA.classList.remove('hidden-left', 'hidden-right');
+    tabA.classList.add('active');
+  }
+
+  history.replaceState(null, '', '/app/?mode=' + mode);
+}
+
+// ── Prévisualisation du signe (HandSignRenderer) ────────────────
+async function showSignPreview(letter) {
+  const panel    = document.getElementById('sign-preview-panel');
+  const letterEl = document.getElementById('preview-letter');
+  const descEl   = document.getElementById('preview-desc');
+  const linkEl   = document.getElementById('preview-dict-link');
+  if (!panel) return;
+
+  // Affiche le panneau
+  panel.classList.remove('hidden');
+  document.getElementById('avatar-idle').style.display = 'none';
+
+  letterEl.textContent = letter.toUpperCase();
+  descEl.textContent   = 'Chargement…';
+  linkEl.href = "{% url 'core:dictionnaire' %}?q=" + encodeURIComponent(letter);
+
+  // Initialise le renderer
+  if (!previewRenderer) {
+    previewRenderer = new HandSignRenderer('preview-canvas');
+  }
+  previewRenderer.startAnimation(letter);
+
+  // Cherche la description dans l'API
+  try {
+    const r    = await fetch(`{% url 'core:api_dictionary' %}?q=${encodeURIComponent(letter)}`);
+    const data = await r.json();
+    const sign = (data.signs || []).find(s => s.mot.toUpperCase() === letter.toUpperCase());
+    if (sign && sign.description) {
+      descEl.textContent = sign.description;
+      linkEl.href = "{% url 'core:dictionnaire' %}" + encodeURIComponent(sign.mot) + '/';
+    } else {
+      descEl.textContent = `Signe ASL pour « ${letter.toUpperCase()} »`;
+    }
+  } catch(e) {
+    descEl.textContent = `Signe ASL pour « ${letter.toUpperCase()} »`;
+  }
+}
+
+function hideSignPreview() {
+  const panel = document.getElementById('sign-preview-panel');
+  if (panel) panel.classList.add('hidden');
+  if (previewRenderer) { previewRenderer.stop(); previewRenderer = null; }
+}
+
+// ── Avatar (Mode A) ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    avatarPlayer = new AvatarPlayer('avatar-canvas');
+  } catch(e) {
+    console.warn('AvatarPlayer init error:', e);
+  }
+
+  // ── Auto-remplissage depuis ?q= (lien dictionnaire) ──────────
+  if (PRE_QUERY) {
+    const ta = document.getElementById('translate-input');
+    if (ta) {
+      ta.value = PRE_QUERY;
+      updateCharCount();
+    }
+    // Si c'est une seule lettre/chiffre : montrer la prévisualisation directement
+    if (/^[a-zA-Z0-9]$/.test(PRE_QUERY)) {
+      showSignPreview(PRE_QUERY);
+    }
+    // Auto-traduire après init (léger délai pour laisser l'avatar s'initialiser)
+    setTimeout(() => translateText(), 400);
+    // Masquer le tip d'onboarding immédiatement
+    document.getElementById('onboarding-tip')?.remove();
+  }
+
+  // Restore last text (seulement si pas de pré-requête)
+  if (!PRE_QUERY) {
+    const saved = sessionStorage.getItem('sb-last-text');
+    if (saved) {
+      document.getElementById('translate-input').value = saved;
+      updateCharCount();
+    }
+  }
+
+  // Onboarding tip
+  setTimeout(() => {
+    const tip = document.getElementById('onboarding-tip');
+    if (tip) { tip.style.opacity = '0'; tip.style.transition = 'opacity 500ms'; }
+    setTimeout(() => tip?.remove(), 500);
+  }, 6000);
+  document.addEventListener('click', () => document.getElementById('onboarding-tip')?.remove(), { once: true });
+
+  // Tips rotation (mode B)
+  const tips = [
+    'Placez vos mains dans le cadre vert',
+    'Un éclairage suffisant améliore la précision',
+    'Signez lentement pour de meilleurs résultats',
+    'Gardez vos mains visibles en entier',
+  ];
+  let tipIdx = 0;
+  setInterval(() => {
+    const el = document.getElementById('tip-text');
+    if (!el) return;
+    el.style.opacity = '0';
+    setTimeout(() => {
+      tipIdx = (tipIdx + 1) % tips.length;
+      el.textContent = tips[tipIdx];
+      el.style.opacity = '1';
+    }, 300);
+  }, 4000);
+
+  // Initialiser le mode actif au chargement
+  if (currentMode === 'camera') initWebcamClient();
+  if (currentMode === 'avatar') initAvatar3D();
+});
+
+// ── Translate (Mode A) ──────────────────────────────────────────
+function updateCharCount() {
+  const ta  = document.getElementById('translate-input');
+  const cnt = document.getElementById('char-count');
+  if (cnt) cnt.textContent = ta.value.length + '/500';
+  sessionStorage.setItem('sb-last-text', ta.value);
+}
+
+let _autoTranslateTimer = null;
+function onTextInput() {
+  updateCharCount();
+  const val = document.getElementById('translate-input').value.trim();
+
+  // ── Prévisualisation en temps réel ─────────────────────────────────
+  if (/^[a-zA-Z0-9]$/.test(val)) {
+    // Un seul caractère : preview immédiate + traduction auto
+    showSignPreview(val);
+    clearTimeout(_autoTranslateTimer);
+    _autoTranslateTimer = setTimeout(() => translateText(), 250);
+  } else if (val.length === 0) {
+    // Champ vidé : retour à l'idle
+    hideSignPreview();
+    document.getElementById('avatar-idle').style.display = 'flex';
+    document.getElementById('word-list-wrap').style.display    = 'none';
+    document.getElementById('anim-progress-wrap').style.display= 'none';
+    avatarPlayer?.reset();
+  }
+  // Plusieurs caractères : pas de preview auto, le bouton Traduire reste disponible
+}
+
+function handleTextareaKey(e) {
+  if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); translateText(); }
+}
+
+function clearInput() {
+  const ta = document.getElementById('translate-input');
+  ta.value = ''; updateCharCount();
+  document.getElementById('word-list-wrap').style.display     = 'none';
+  document.getElementById('anim-progress-wrap').style.display = 'none';
+  document.getElementById('avatar-idle').style.display        = 'flex';
+  document.getElementById('avatar-sign-label').style.opacity  = '0';
+  document.getElementById('txt-chips-wrap').style.display     = 'none';
+  document.getElementById('txt-speed-row').style.display      = 'none';
+  document.getElementById('txt-chips').innerHTML               = '';
+  _txtChipTimers.forEach(clearTimeout); _txtChipTimers = [];
+  avatarPlayer?.reset();
+  sessionStorage.removeItem('sb-last-text');
+}
+
+async function translateText() {
+  const text = document.getElementById('translate-input').value.trim();
+  if (!text) { window.toast?.error('Entrez du texte à traduire'); return; }
+
+  const btn = document.getElementById('translate-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Traduction en cours...';
+
+  try {
+    const resp = await fetch('{% url "core:api_text_to_sign" %}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+      body: JSON.stringify({ text }),
+    });
+    const data = await resp.json();
+
+    if (!resp.ok) { window.toast?.error(data.error || 'Erreur serveur'); return; }
+
+    currentSeq = data.sequence;
+    renderWordList(data);
+    startAnimation(data.sequence);
+    window.toast?.success(`${data.words_found} signe(s) traduit(s) ✓`);
+
+  } catch(e) {
+    window.toast?.error('Erreur de connexion');
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-play"></i> Traduire en ASL';
+  }
+}
+
+function renderWordList(data) {
+  const wrap = document.getElementById('word-list-wrap');
+  const list = document.getElementById('word-list');
+  wrap.style.display = 'block';
+  list.innerHTML = '';
+  data.sequence.forEach((item, i) => {
+    const span = document.createElement('span');
+    span.className = 'word-badge ' + (item.found ? 'found' : 'notfound');
+    span.id = 'word-badge-' + i;
+    span.innerHTML = item.found
+      ? `<i class="fas fa-check"></i> ${item.word}`
+      : `<i class="fas fa-times"></i> ${item.word}`;
+    if (!item.found) span.title = 'Épelé lettre par lettre';
+    list.appendChild(span);
+  });
+}
+
+function startAnimation(seq) {
+  // Cache la preview si elle était affichée
+  hideSignPreview();
+  document.getElementById('avatar-idle').style.display        = 'none';
+  document.getElementById('anim-progress-wrap').style.display = 'block';
+  isAnimating = true;
+
+  // ── Annuler anciens timers chips ──────────────────────────────
+  _txtChipTimers.forEach(clearTimeout);
+  _txtChipTimers = [];
+
+  // ── Afficher vitesse ──────────────────────────────────────────
+  document.getElementById('txt-speed-row').style.display = 'flex';
+
+  // ── Appliquer multiplicateur de vitesse ───────────────────────
+  const mul = TEXT_SPEEDS[textModeSpeed] || 1.0;
+  const adjustedSeq = seq.map(item => ({
+    ...item,
+    duration_ms: Math.round((item.duration_ms || 1200) * mul),
+  }));
+
+  // ── Construire chips lettre par lettre ────────────────────────
+  const chipsEl   = document.getElementById('txt-chips');
+  const chipsWrap = document.getElementById('txt-chips-wrap');
+  chipsEl.innerHTML = '';
+  chipsWrap.style.display = 'block';
+
+  // Timeline plate : { id, startMs }
+  const timeline = [];
+  let elapsed = 0;
+  adjustedSeq.forEach((item, si) => {
+    if (item.found || !item.letters?.length) {
+      // Mot trouvé → une seule chip
+      const id = `txt-chip-${si}-0`;
+      const chip = document.createElement('span');
+      chip.className = 'avatar3d-chip';
+      chip.id = id;
+      chip.textContent = item.word.toUpperCase();
+      chipsEl.appendChild(chip);
+      timeline.push({ id, startMs: elapsed });
+      elapsed += item.duration_ms;
+    } else {
+      // Mot épelé lettre par lettre
+      const perLetter = Math.round(item.duration_ms / item.letters.length);
+      item.letters.forEach((l, li) => {
+        const id = `txt-chip-${si}-${li}`;
+        const chip = document.createElement('span');
+        chip.className = 'avatar3d-chip';
+        chip.id = id;
+        chip.textContent = l;
+        chipsEl.appendChild(chip);
+        timeline.push({ id, startMs: elapsed });
+        elapsed += perLetter;
+      });
+    }
+  });
+
+  // Planifier les highlights
+  const totalDur = elapsed;
+  timeline.forEach((entry, i) => {
+    const t = _txtChipTimers.push(setTimeout(() => {
+      document.querySelectorAll('#txt-chips .avatar3d-chip').forEach((c, ci) => {
+        c.classList.remove('active','done');
+        if (ci < i)  c.classList.add('done');
+        if (ci === i) c.classList.add('active');
+      });
+      // Barre de progression globale
+      const pct = totalDur > 0 ? Math.round((entry.startMs / totalDur) * 100) : 0;
+      document.getElementById('progress-fill').style.width = pct + '%';
+      document.getElementById('progress-pct').textContent  = pct + '%';
+      document.getElementById('current-word-label').textContent = entry.id.split('-').pop() !== '0'
+        ? timeline[i].id : '';
+    }, entry.startMs));
+  });
+
+  // Marquer tout done à la fin
+  _txtChipTimers.push(setTimeout(() => {
+    document.querySelectorAll('#txt-chips .avatar3d-chip').forEach(c => {
+      c.classList.remove('active'); c.classList.add('done');
+    });
+    document.getElementById('progress-fill').style.width = '100%';
+    document.getElementById('progress-pct').textContent  = '100%';
+    document.getElementById('current-word-label').textContent = 'Terminé ✓';
+    isAnimating = false;
+  }, totalDur + 50));
+
+  // ── Lancer l'animation AvatarPlayer ──────────────────────────
+  if (avatarPlayer) {
+    avatarPlayer.playSignSequence(adjustedSeq, {
+      onWordStart: (word, idx) => {
+        highlightWord(idx);
+        const labelEl = document.getElementById('avatar-sign-label');
+        if (labelEl) labelEl.style.opacity = '1';
+        const textEl = document.getElementById('avatar-sign-text');
+        if (textEl) textEl.textContent = word.toUpperCase();
+      },
+      onSequenceComplete: () => {
+        isAnimating = false;
+        document.getElementById('current-word-label').textContent = 'Terminé ✓';
+        document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('progress-pct').textContent = '100%';
+      },
+      onProgress: (pct, label) => {
+        const labelEl = document.getElementById('avatar-sign-label');
+        if (labelEl) { labelEl.style.opacity = '1'; }
+        document.getElementById('avatar-sign-text').textContent = label;
+      },
+    });
+  } else {
+    // Fallback sans AvatarPlayer
+    let i = 0;
+    function nextWord() {
+      if (i >= adjustedSeq.length) return;
+      highlightWord(i);
+      document.getElementById('avatar-sign-text').textContent = adjustedSeq[i].word.toUpperCase();
+      document.getElementById('avatar-sign-label').style.opacity = '1';
+      i++;
+      setTimeout(nextWord, adjustedSeq[i-1]?.duration_ms || 1200);
+    }
+    nextWord();
+  }
+}
+
+function highlightWord(idx) {
+  document.querySelectorAll('.word-badge').forEach(b => {
+    b.classList.remove('active');
+    if (!b.classList.contains('notfound')) b.classList.add('found');
+  });
+  const badge = document.getElementById('word-badge-' + idx);
+  if (badge) badge.classList.add('active');
+}
+
+
+function toggleFullscreen() {
+  const canvas = document.getElementById('avatar-canvas');
+  if (!document.fullscreenElement) canvas.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+}
+
+// ── Avatar 3D (Mode C) ──────────────────────────────────────────
+
+async function initAvatar3D() {
+  // Créer le renderer Three.js si pas encore fait
+  if (!hand3DRenderer) {
+    if (typeof THREE === 'undefined') {
+      document.getElementById('avatar3d-status').innerHTML =
+        '<i class="fas fa-exclamation-triangle" style="color:#fca5a5"></i> Three.js non chargé';
+      return;
+    }
+    hand3DRenderer = new Hand3DRenderer('hand3d-canvas');
+    hand3DRenderer.onSignChange = (letter, idx, total) => {
+      document.getElementById('avatar3d-current-letter').textContent = letter;
+      const pct = ((idx) / total) * 100;
+      document.getElementById('avatar3d-progress-fill').style.width = pct + '%';
+      // Mettre à jour les chips
+      document.querySelectorAll('#avatar3d-chips .avatar3d-chip').forEach((chip, i) => {
+        chip.classList.remove('active', 'done');
+        if (i < idx)       chip.classList.add('done');
+        if (i === idx - 1) chip.classList.add('active');
+      });
+      // Overlay lettre sur le canvas (toujours affiché, plus visible si pose manquante)
+      const overlay = document.getElementById('hand3d-letter-overlay');
+      if (overlay) {
+        overlay.textContent = letter;
+        const hasPose = !!avatar3DPoses[letter];
+        overlay.style.opacity = hasPose ? '0.13' : '0.55';
+        overlay.style.color   = hasPose
+          ? 'rgba(110,231,183,0.18)'
+          : 'rgba(110,231,183,0.65)';
+      }
+    };
+    hand3DRenderer.onComplete = () => {
+      document.getElementById('avatar3d-play-btn').innerHTML = '<i class="fas fa-play"></i> Animer';
+      document.getElementById('avatar3d-current-letter').textContent = '✓';
+      document.getElementById('avatar3d-progress-fill').style.width = '100%';
+      document.querySelectorAll('#avatar3d-chips .avatar3d-chip').forEach(c => {
+        c.classList.remove('active'); c.classList.add('done');
+      });
+      // Cacher overlay lettre
+      const overlay = document.getElementById('hand3d-letter-overlay');
+      if (overlay) { overlay.style.opacity = '0'; }
+    };
+  }
+
+  // Charger les poses depuis l'API si pas encore fait
+  if (Object.keys(avatar3DPoses).length === 0) {
+    try {
+      const r = await fetch('{% url "core:api_avatar_landmarks" %}');
+      avatar3DPoses = await r.json();
+      hand3DRenderer.loadPoses(avatar3DPoses);
+      const count = Object.keys(avatar3DPoses).length;
+      document.getElementById('avatar3d-status').innerHTML =
+        `<i class="fas fa-check-circle" style="color:#6EE7B7"></i> ${count} poses chargées`;
+    } catch(e) {
+      document.getElementById('avatar3d-status').innerHTML =
+        '<i class="fas fa-exclamation-triangle" style="color:#fca5a5"></i> Erreur chargement poses';
+    }
+  }
+}
+
+let _avatar3dAutoTimer = null;
+
+function onAvatar3DInput() {
+  const val = document.getElementById('avatar3d-input').value;
+  document.getElementById('avatar3d-char-count').textContent = val.length;
+
+  const clean = val.toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim();
+  if (!clean) return;
+
+  clearTimeout(_avatar3dAutoTimer);
+
+  const doShow = () => {
+    if (clean.length === 1) {
+      hand3DRenderer.showSign(clean);
+    } else {
+      playAvatar3D();
+    }
+  };
+
+  if (!hand3DRenderer) {
+    initAvatar3D().then(doShow);
+    return;
+  }
+
+  if (clean.length === 1) {
+    // Lettre ou chiffre unique → affichage immédiat sans délai
+    doShow();
+  } else {
+    // Plusieurs caractères → debounce 500 ms puis animation
+    _avatar3dAutoTimer = setTimeout(doShow, 500);
+  }
+}
+
+function setAvatarSpeed(speed) {
+  avatar3DSpeed = speed;
+  ['slow','normal','fast'].forEach(k =>
+    document.getElementById('spd-' + k).classList.toggle('active', k === speed));
+}
+
+function setTextSpeed(speed) {
+  textModeSpeed = speed;
+  ['slow','normal','fast'].forEach(k =>
+    document.getElementById('txt-spd-' + k).classList.toggle('active', k === speed));
+}
+
+function playAvatar3D() {
+  if (!hand3DRenderer) { initAvatar3D().then(playAvatar3D); return; }
+  const raw = document.getElementById('avatar3d-input').value.toUpperCase().trim();
+  if (!raw) { window.toast?.info('Tapez du texte à animer'); return; }
+
+  // Convertir le texte en séquence de lettres (lettres + chiffres + espaces)
+  const letters = raw.split('').filter(c => /[A-Z0-9 ]/.test(c));
+  if (!letters.length) return;
+
+  // Construire les chips de progression
+  const chips = document.getElementById('avatar3d-chips');
+  chips.innerHTML = '';
+  letters.forEach((l, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'avatar3d-chip';
+    chip.textContent = l === ' ' ? '·' : l;
+    chip.dataset.idx = i;
+    chips.appendChild(chip);
+  });
+
+  document.getElementById('avatar3d-progress-fill').style.width = '0%';
+  document.getElementById('avatar3d-play-btn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> En cours…';
+
+  const holdMs  = AVATAR3D_SPEEDS[avatar3DSpeed];
+  const transMs = Math.round(holdMs * 0.5);
+  hand3DRenderer.playSequence(letters, { holdMs, transMs });
+}
+
+function stopAvatar3D() {
+  if (hand3DRenderer) hand3DRenderer.stop();
+  document.getElementById('avatar3d-play-btn').innerHTML = '<i class="fas fa-play"></i> Animer';
+}
+
+function resetAvatar3D() {
+  if (hand3DRenderer) hand3DRenderer.reset();
+  document.getElementById('avatar3d-current-letter').textContent = '—';
+  document.getElementById('avatar3d-progress-fill').style.width = '0%';
+  document.getElementById('avatar3d-chips').innerHTML = '';
+  document.getElementById('avatar3d-play-btn').innerHTML = '<i class="fas fa-play"></i> Animer';
+}
+
+// ── Mic (speech) ────────────────────────────────────────────────
+function toggleMic() {
+  if (!speechClient) speechClient = new SpeechInput('translate-input', updateCharCount);
+  const btn = document.getElementById('mic-btn');
+  if (speechClient.isListening) {
+    speechClient.stop();
+    btn.innerHTML = '<i class="fas fa-microphone"></i> Dicter';
+    btn.classList.remove('mic-active');
+  } else {
+    speechClient.start();
+    btn.innerHTML = '<i class="fas fa-stop-circle"></i> Écoute...';
+    btn.classList.add('mic-active');
+  }
+}
+
+// ── Webcam client (Mode B) ──────────────────────────────────────
+function initWebcamClient() {
+  if (!webcamClient) {
+    const wsProto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+    webcamClient = new WebcamClient({
+      videoEl:   'webcam-video',
+      canvasEl:  'webcam-canvas',
+      wsUrl:     wsProto + window.location.host + '/ws/sign-recognition/',
+      onConnected:    () => updateWsStatus('connected',   'Connecté'),
+      onConnecting:   () => updateWsStatus('connecting',  'Connexion...'),
+      onDisconnected: () => updateWsStatus('disconnected','Déconnecté'),
+      onGesture:      (data) => handleGesture(data),
+      onLandmarks:    (lm)   => drawLandmarks(lm),
+      onNoHand:       ()     => {
+        // Auto-cacher l'overlay et déverrouiller pour le prochain signe
+        document.getElementById('detected-overlay').style.display = 'none';
+        _stableSign  = null;
+        _stableCount = 0;
+        _lastWritten = null;   // main retirée → on peut réécrire le même signe
+      },
+      onMlStatus:     (ready) => updateMlStatus(ready),
+    });
+  }
+}
+
+function updateWsStatus(state, label) {
+  ['ws-dot', 'ws-dot-b'].forEach(id => {
+    const dot = document.getElementById(id);
+    if (dot) { dot.className = 'ws-dot ' + state; }
+  });
+  ['ws-label', 'ws-label-b'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = label;
+  });
+}
+
+function updateMlStatus(ready) {
+  const el = document.getElementById('ml-status-badge');
+  if (!el) return;
+  if (ready) {
+    el.style.display = 'none';
+  } else {
+    el.style.display = 'flex';
+    // Disparaît automatiquement après 8s (ML devrait être prêt d'ici là)
+    setTimeout(() => { el.style.display = 'none'; }, 8000);
+  }
+}
+
+function toggleCamera() {
+  const btn = document.getElementById('cam-btn');
+  const ph  = document.getElementById('cam-placeholder');
+  const vid = document.getElementById('webcam-video');
+  const gf  = document.getElementById('guide-frame');
+
+  if (!webcamClient) initWebcamClient();
+
+  if (webcamClient.isActive) {
+    webcamClient.stopCamera();
+    btn.innerHTML = '<i class="fas fa-camera"></i> Activer la caméra';
+    btn.className = 'btn-primary';
+    btn.style.justifyContent = 'center';
+    ph.style.display  = 'flex';
+    vid.style.display = 'none';
+    gf.style.display  = 'none';
+    document.getElementById('detected-overlay').style.display = 'none';
+  } else {
+    webcamClient.startCamera().then(ok => {
+      if (ok) {
+        btn.innerHTML = '<i class="fas fa-stop-circle" style="color:#fff"></i> Désactiver';
+        btn.className = 'btn-danger'; btn.style.justifyContent = 'center';
+        ph.style.display  = 'none';
+        vid.style.display = 'block';
+        gf.style.display  = 'block';
+        // Afficher le badge ML "en init" jusqu'à réception du signal prêt
+        const badge = document.getElementById('ml-status-badge');
+        if (badge) badge.style.display = 'flex';
+      } else {
+        window.toast?.error('Impossible d\'accéder à la caméra. Vérifiez les permissions.');
+      }
+    });
+  }
+}
+
+function handleGesture(data) {
+  if (!data.geste) return;
+  const overlay   = document.getElementById('detected-overlay');
+  const signEl    = document.getElementById('detected-sign-text');
+  const confEl    = document.getElementById('conf-pct');
+  const confFill  = document.getElementById('conf-fill');
+  const conf      = data.confiance || 0;
+  const lowConf   = data.low_confidence || false;
+  const isDemo    = data.demo_mode    || false;
+
+  // Toujours afficher l'overlay (signe + confiance) quand une main est détectée
+  overlay.style.display   = 'block';
+  signEl.textContent      = data.geste;
+
+  // Couleur du signe : vert si sûr, jaune si moyen, rouge si incertain
+  signEl.style.color = conf >= 0.55 ? '#6EE7B7'
+                     : conf >= 0.30 ? '#FCD116'
+                     : '#fca5a5';
+  signEl.style.textShadow = `0 0 20px ${signEl.style.color}55`;
+
+  // Badge d'état
+  let badge = '';
+  if (isDemo)       badge = '<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--jaune-cam)"> DÉMO</span>';
+  else if (lowConf) badge = '<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#fca5a5"> ?</span>';
+  confEl.innerHTML = Math.round(conf * 100) + '%' + badge;
+
+  confFill.style.width      = (conf * 100) + '%';
+  confFill.style.background = conf >= 0.55 ? 'var(--vert-cam)'
+                            : conf >= 0.30 ? '#f59e0b'
+                            : 'var(--rouge-cam)';
+
+  // ── Logique de stabilité ──────────────────────────────────────────────────
+  // • Signe change → reset compteur immédiat (pas besoin de retirer la main)
+  // • Seuil dynamique : 22 % normal, 11 % si le même signe tient ≥ 6 frames
+  // • low_confidence ne bloque PAS si le signe est très stable (≥ 6 frames)
+  // • Quand main part (no_hand) → _lastWritten = null → même signe rédetectable
+
+  if (data.geste === _stableSign) {
+    _stableCount++;
+  } else {
+    _stableSign  = data.geste;
+    _stableCount = 1;
+  }
+
+  // Seuil abaissé si le signe tient longtemps (≥ 6 frames ≈ 480 ms)
+  const isSustained = _stableCount >= 6;
+  const threshold   = isSustained ? CONF_SUSTAINED : CONF_THRESHOLD;
+  // low_confidence ne bloque plus si très stable (le signe tient depuis longtemps)
+  const blocked     = lowConf && !isSustained;
+
+  if (conf >= threshold && !blocked &&
+      _stableCount >= STABLE_NEEDED &&
+      data.geste !== _lastWritten) {
+    addRecognizedSign(data.geste, conf);
+    _lastWritten = data.geste;
+    _stableCount = 0;
+  }
+
+  addHistoryChip(data.geste, conf);
+}
+
+function addRecognizedSign(sign, conf) {
+  const words = document.getElementById('recognized-words');
+  const word  = sign.charAt(0).toUpperCase() + sign.slice(1).toLowerCase();
+  const span  = document.createElement('span');
+  span.textContent = word + ' ';
+  span.style.animation = 'slideUp 0.2s ease';
+  words.appendChild(span);
+  recognizedText += word + ' ';
+  signCount++;
+  document.getElementById('sign-count').textContent = signCount;
+
+  const container = document.getElementById('recognized-text');
+  container.scrollTop = container.scrollHeight;
+}
+
+function addHistoryChip(sign, conf) {
+  signHistory.unshift({ sign, conf });
+  if (signHistory.length > 10) signHistory = signHistory.slice(0, 10);
+  const hist = document.getElementById('sign-history');
+  hist.innerHTML = '';
+  signHistory.forEach(item => {
+    const chip = document.createElement('span');
+    chip.className = 'history-chip';
+    chip.innerHTML = `${item.sign} <span style="color:var(--text-muted);font-size:11px">${Math.round(item.conf*100)}%</span>`;
+    hist.appendChild(chip);
+  });
+}
+
+function drawLandmarks(landmarks) {
+  const canvas = document.getElementById('webcam-canvas');
+  const ctx    = canvas.getContext('2d');
+  const video  = document.getElementById('webcam-video');
+  if (!canvas || !video) return;
+
+  canvas.width  = video.videoWidth  || canvas.clientWidth;
+  canvas.height = video.videoHeight || canvas.clientHeight;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!landmarks || !landmarks.length) return;
+
+  const connections = [
+    [0,1],[1,2],[2,3],[3,4],
+    [0,5],[5,6],[6,7],[7,8],
+    [0,9],[9,10],[10,11],[11,12],
+    [0,13],[13,14],[14,15],[15,16],
+    [0,17],[17,18],[18,19],[19,20],
+    [5,9],[9,13],[13,17],
+  ];
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth   = 1.5;
+  connections.forEach(([a, b]) => {
+    if (landmarks[a] && landmarks[b]) {
+      ctx.beginPath();
+      ctx.moveTo(landmarks[a].x * canvas.width, landmarks[a].y * canvas.height);
+      ctx.lineTo(landmarks[b].x * canvas.width, landmarks[b].y * canvas.height);
+      ctx.stroke();
+    }
+  });
+
+  landmarks.forEach((lm, i) => {
+    const x = lm.x * canvas.width;
+    const y = lm.y * canvas.height;
+    ctx.beginPath();
+    ctx.arc(x, y, i === 0 ? 5 : 3, 0, Math.PI * 2);
+    ctx.fillStyle = i === 0 ? 'var(--vert-cam)' : '#22c55e';
+    ctx.fill();
+  });
+}
+
+function clearRecognized() {
+  document.getElementById('recognized-words').innerHTML = '';
+  recognizedText = ''; signCount = 0; signHistory = [];
+  document.getElementById('sign-count').textContent = '0';
+  document.getElementById('sign-history').innerHTML = '';
+  document.getElementById('detected-overlay').style.display = 'none';
+}
+
+function copyRecognized() {
+  if (!recognizedText.trim()) { window.toast?.info('Rien à copier'); return; }
+  navigator.clipboard.writeText(recognizedText.trim())
+    .then(() => window.toast?.success('Texte copié ✓'))
+    .catch(() => window.toast?.error('Erreur de copie'));
+}
+
+function speakRecognized() {
+  if (!recognizedText.trim()) { window.toast?.info('Rien à lire'); return; }
+  const utt = new SpeechSynthesisUtterance(recognizedText.trim());
+  utt.lang = 'fr-FR';
+  speechSynthesis.speak(utt);
+}
+
+// ── Helpers ─────────────────────────────────────────────────────
+function getCookie(name) {
+  const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+  return v ? v[2] : null;
+}
+
+// Restore mode from localStorage
+(function() {
+  const saved = localStorage.getItem('sb-last-mode');
+  if (saved && saved !== currentMode && (saved === 'text' || saved === 'camera')) {
+    // Already rendered server-side, just keep it consistent
+  }
+})();
+</script>
+{% endblock %}
