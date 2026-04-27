@@ -1,0 +1,6 @@
+{
+  "version": "1.0",
+  "description": "Registre des vidéos du dataset SignBridge",
+  "signs": [],
+  "note": "Placez vos vidéos dans dataset/raw/<signe>/ et lancez extract_landmarks"
+}
