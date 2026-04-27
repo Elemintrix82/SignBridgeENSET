@@ -11,7 +11,7 @@
 [![Three.js](https://img.shields.io/badge/Three.js-r160-black?style=flat&logo=three.js&logoColor=white)](https://threejs.org)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat)](LICENSE)
 
-*Développé à l'ENSET de Douala — Cameroun 🇨🇲*
+*Cameroun 🇨🇲*
 
 </div>
 
@@ -316,8 +316,6 @@ Ce projet est distribué sous licence **MIT**. Voir [LICENSE](LICENSE) pour plus
 ---
 
 <div align="center">
-
-**ENSET de Douala — Cameroun 🇨🇲**
 
 *SignBridge — Briser les barrières, signer l'avenir* 🤟
 
