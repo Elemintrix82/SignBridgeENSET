@@ -205,6 +205,44 @@ Ouvrez **http://localhost:8000**
 
 ---
 
+## Notebook d'entraînement
+
+Le dossier [`train_model/`](train_model/) contient un notebook Jupyter **standalone** (sans Django) pour entraîner les modèles sur n'importe quel dataset.
+
+```bash
+# Installation des dépendances
+pip install -r train_model/requirements.txt
+
+# Lancer le notebook
+jupyter notebook train_model/SignBridge_Training.ipynb
+```
+
+### Formats de datasets supportés
+
+| Format | Description |
+|--------|-------------|
+| **CSV** | `label, x0,y0,z0, x1,y1,z1, ...` (format Kaggle ASL) |
+| **JSON** | `[{"label": "A", "landmarks": [63 floats]}, ...]` |
+| **Images** | Dossier `images/A/img1.jpg ...` avec extraction MediaPipe automatique |
+| **NumPy** | Fichiers `.npy` X(N,63) et y(N,) |
+
+### Contenu du notebook
+
+| Section | Description |
+|---------|-------------|
+| 0. Configuration | Chemins, hyperparamètres, source dataset |
+| 1. Imports | Bibliothèques ML + config dark theme matplotlib |
+| 2. Chargement | 4 loaders selon le format (CSV / JSON / Images / NumPy) |
+| 3. EDA | Distribution des classes, variance des features, détection déséquilibre |
+| 4. Prétraitement | Nettoyage NaN, filtrage classes, normalisation MediaPipe, augmentation |
+| 5. Random Forest | Entraînement, validation croisée 5-fold, matrice de confusion, importance des features |
+| 6. LSTM | Architecture LSTM+Dropout, early stopping, courbes d'entraînement |
+| 7. Comparaison | RF vs SVM vs KNN vs MLP (optionnel) |
+| 8. Export | Sauvegarde `rf_model.pkl`, `lstm_model.h5`, `model_info.json` |
+| 9. Inférence | Test de rechargement + prédictions sur 10 samples + accuracy par classe |
+
+---
+
 ## Pipeline Machine Learning
 
 ### Données d'entraînement
